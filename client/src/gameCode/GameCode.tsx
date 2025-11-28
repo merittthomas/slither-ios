@@ -12,8 +12,7 @@ export default function GameCode({
 }): JSX.Element {
   return (
     <div className="codeDisplay">
-      <p className="code-tagline">Your game code:</p>
-      <p className="codeText">{gameCode}</p>
+      <p className="code-tagline">Party Code: <span className="codeText">{gameCode}</span></p>
     </div>
   );
 }
