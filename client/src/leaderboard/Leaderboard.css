@@ -1,9 +1,10 @@
 .leaderboard {
-  background-color: lightslategray;
+  background-color: black;
   position: fixed;
   top: 2%;
   right: 1%;
   opacity: 60%;
+  padding: 10px;
 }
 
 .leaderboard-title {
