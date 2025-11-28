@@ -4,7 +4,7 @@
   height: 35px;
   width: 35px;
   border-radius: 50%;
-  border: 2px solid white;
+  /* border is applied inline for scale-proportional sizing */
   background-color: white;
 }
 
@@ -22,7 +22,7 @@
   height: 35px;
   width: 35px;
   border-radius: 50%;
-  border: 2px solid white;
+  /* border is applied inline for scale-proportional sizing */
   z-index: 1;
 }
 
@@ -45,7 +45,7 @@
   height: 35px;
   width: 35px;
   border-radius: 50%;
-  border: 2px solid white;
+  /* border is applied inline for scale-proportional sizing */
   background-color: white;
   transition: left 50ms linear, top 50ms linear;
 }
@@ -65,7 +65,7 @@
   height: 35px;
   width: 35px;
   border-radius: 50%;
-  border: 2px solid white;
+  /* border is applied inline for scale-proportional sizing */
   z-index: 1;
   transition: transform 50ms linear;
 }

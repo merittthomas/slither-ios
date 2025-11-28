@@ -5,8 +5,8 @@
 // Base snake segment size in pixels
 export const BASE_SNAKE_SIZE = 35;
 
-// Maximum scale factor (3x = 105px at max, 150% increase from previous 2x max)
-export const MAX_SNAKE_SCALE = 3.0;
+// Maximum scale factor (4x = 140px at max)
+export const MAX_SNAKE_SCALE = 4.0;
 
 // Size increase per point (0.05px per point, hits max at 1400 points)
 export const SCALE_FACTOR = 0.05;

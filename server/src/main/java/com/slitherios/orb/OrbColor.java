@@ -10,11 +10,11 @@ public abstract class OrbColor {
 
     // Map of skinId to hex color (matching client-side SnakeSkins.ts)
     private static final Map<String, String> SKIN_COLORS = Map.of(
-        "astro", "#EA3D3D",
-        "beta", "#EA8A3D",
-        "comet", "#EAD83D",
-        "delta", "#55EA3D",
-        "eclipse", "#3DABEA",
+        "music", "#ff254f",
+        "games", "#fe4e3e",
+        "invites", "#f8dc1f",
+        "numbers", "#05e216",
+        "appstore", "#1c8bf3",
         "flare", "#3D45EA",
         "gamma", "#8A3DEA",
         "helio", "#E43DEA",
@@ -27,7 +27,7 @@ public abstract class OrbColor {
      */
     public static String generate() {
         // Using the same colors as snake skins for consistency
-        final String[] colors = { "EA3D3D", "EA8A3D", "EAD83D", "55EA3D", "3DABEA", "3D45EA", "8A3DEA", "E43DEA", "888888" };
+        final String[] colors = { "ff254f", "fe4e3e", "f8dc1f", "05e216", "1c8bf3", "3D45EA", "8A3DEA", "E43DEA", "888888" };
         Random random = new Random();
 
         return "#" + colors[random.nextInt(0, colors.length)];
@@ -39,6 +39,6 @@ public abstract class OrbColor {
      * @return the hexidecimal color string for the skin, or default red if not found
      */
     public static String getColorForSkin(String skinId) {
-        return SKIN_COLORS.getOrDefault(skinId, "#EA3D3D");
+        return SKIN_COLORS.getOrDefault(skinId, "#ff254f");
     }
 }

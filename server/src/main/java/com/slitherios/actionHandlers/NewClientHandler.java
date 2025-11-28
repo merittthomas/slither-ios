@@ -54,7 +54,7 @@ public class NewClientHandler {
     String username = message.data().get("username").toString();
     String skinId = message.data().containsKey("skinId")
         ? message.data().get("skinId").toString()
-        : "astro";  // Default fallback for backward compatibility
+        : "music";  // Default fallback for backward compatibility
     String gameCode = message.data().get("gameCode").toString();
 
     boolean gameExists = server.getExistingGameCodes().contains(gameCode);
@@ -98,7 +98,7 @@ public class NewClientHandler {
       throw new MissingFieldException(message, MessageType.JOIN_ERROR);
     String skinId = message.data().containsKey("skinId")
         ? message.data().get("skinId").toString()
-        : "astro";  // Default fallback for backward compatibility
+        : "music";  // Default fallback for backward compatibility
     User user = new User(message.data().get("username").toString(), skinId);
     boolean result = server.addWebsocketUser(websocket, user);
     if (!result)

@@ -93,6 +93,20 @@ function adjustColorForGradient(hex: string): string {
 }
 
 /**
+ * Lightens a hex color for use as border with 25% opacity
+ * @param hex The hex color code (e.g., "#EA3D3D")
+ * @returns HSLA color string with increased brightness and 25% opacity
+ */
+function lightenColorForBorder(hex: string): string {
+  const [h, s, l] = hexToHSL(hex);
+
+  // Increase brightness by 20%
+  const newL = Math.min(100, l + 20);
+
+  return `hsla(${h}, ${s}%, ${newL}%, 0.25)`;
+}
+
+/**
  * Renders the given snake, represented by its metadata, on screen at the
  * given position offset; a snake is rendered as a consecutive collection of circles
  * @param snake a metadata representation of a snake
@@ -144,6 +158,14 @@ export default function Snake({
   const skinColor = snake.skin?.color || "#FFFFFF";
   const headImageSrc = snake.skin?.headImage || "/assets/snake-head.png";
   const darkerColor = adjustColorForGradient(skinColor);
+  const lighterColor = lightenColorForBorder(skinColor);
+
+  // Calculate how many positions to skip between rendered segments
+  // At scale 1x: render every segment
+  // At scale 2x: render every 2nd segment
+  // At scale 3x: render every 4th segment
+  // At scale 4x: render every 6th segment
+  const renderInterval = Math.max(1, Math.round((scale - 1) * 2));
 
   // Boost glow effect - creates a pulsing glow around the snake when boosting
   // Divide glow size by scale to keep it consistent regardless of snake size
@@ -161,6 +183,13 @@ export default function Snake({
         const isHead = ind === 0;
         // Head gets highest z-index, each segment gets progressively lower
         const zIndex = bodyArray.length - ind;
+
+        // Skip segments based on renderInterval to prevent complete overlap at large scales
+        // Always render head (ind === 0) and last segment (tail)
+        const isLastSegment = ind === bodyArray.length - 1;
+        if (!isHead && !isLastSegment && ind % renderInterval !== 0) {
+          return null;
+        }
 
         if (isHead) {
           // Render head as layered elements: circular background + image on top
@@ -180,7 +209,7 @@ export default function Snake({
                 className={`snake-head-bg ${isBoosting ? "boosting" : ""}`}
                 style={{
                   background: `radial-gradient(circle at center, ${skinColor}, ${darkerColor})`,
-                  borderColor: darkerColor,
+                  border: `${0.35}px solid ${lighterColor}`,
                   transform: `rotate(${headRotation}deg)`,
                   boxShadow: boostGlow,
                 }}
@@ -206,7 +235,7 @@ export default function Snake({
                 left: bodyPart.x + offset.x,
                 top: bodyPart.y + offset.y,
                 background: `radial-gradient(circle at center, ${skinColor}, ${darkerColor})`,
-                borderColor: darkerColor,
+                border: `${0.35}px solid ${lighterColor}`,
                 zIndex: zIndex,
                 boxShadow: boostGlow,
                 transform: `translate(-50%, -50%) scale(${scale})`,

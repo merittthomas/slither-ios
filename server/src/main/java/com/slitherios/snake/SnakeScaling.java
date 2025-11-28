@@ -10,8 +10,8 @@ public class SnakeScaling {
     // Base snake segment size in pixels (same as client)
     public static final double BASE_SNAKE_SIZE = 35.0;
 
-    // Maximum scale factor (3x = 105px at max, 150% increase from previous 2x)
-    public static final double MAX_SNAKE_SCALE = 3.0;
+    // Maximum scale factor (4x = 140px at max)
+    public static final double MAX_SNAKE_SCALE = 4.0;
 
     // Size increase per point (0.05px per point, hits max at 1400 points)
     public static final double SCALE_FACTOR = 0.05;
@@ -47,7 +47,7 @@ public class SnakeScaling {
      * to match the visual appearance.
      *
      * @param score The player's current score
-     * @return Collision radius in pixels (from 17.5 to 52.5 as scale goes from 1.0 to 3.0)
+     * @return Collision radius in pixels (from 17.5 to 70 as scale goes from 1.0 to 4.0)
      */
     public static double calculateCollisionRadius(int score) {
         double scale = calculateSnakeScale(score);

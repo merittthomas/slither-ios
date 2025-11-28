@@ -511,20 +511,40 @@ public class GameState {
   }
 
   /**
-   * Generates death orbs for a snake when it dies: a DEATH orb (10 pts, twice the size of LARGE)
-   * is created for visually distinct body segments (not stacked/pending segments), and all the
-   * clients in the same game are updated with the new orbs so that they can be rendered.
+   * Generates death orbs for a snake when it dies: a LARGE orb (10 pts) is created for visually
+   * distinct body segments (not stacked/pending segments), and all the clients in the same game
+   * are updated with the new orbs so that they can be rendered.
+   *
+   * Larger snakes generate fewer orbs total - at score 2000+, they drop only half the orbs
+   * that a small snake would drop. This reduces lag from large snake deaths.
    *
    * @param positions - a List of Positions: the positions of the body parts of the snake that has
    *                  died and needs to be converted ("dissolved") into death orbs.
    * @param skinId - the skin ID of the dead snake, used to color the orbs
+   * @param score - the score of the dead snake, used to determine how many orbs to skip
    */
-  private void generateDeathOrbs(List<Position> positions, String skinId) {
+  private void generateDeathOrbs(List<Position> positions, String skinId, int score) {
     String orbColor = OrbColor.getColorForSkin(skinId);
     // Minimum distance between orbs - segments closer than this are stacked/pending
     // and should only produce one orb at that location
     double minOrbDistance = 3.0;
     Position lastOrbPosition = null;
+
+    // Get the snake's radius based on its score for scatter offset
+    double snakeRadius = SnakeScaling.calculateCollisionRadius(score);
+
+    // Calculate skip ratio based on score to reduce total orbs for large snakes
+    // At score 0-999: 0% skip (all orbs created)
+    // At score 1000-1999: 50% skip (half as many orbs)
+    // At score 2000+: 75% skip (quarter as many orbs)
+    double skipRatio;
+    if (score >= 2000) {
+      skipRatio = 0.75;
+    } else if (score >= 1000) {
+      skipRatio = 0.5;
+    } else {
+      skipRatio = 0.0;
+    }
 
     for (int i = 0; i < positions.size(); i++) {
       Position pos = positions.get(i);
@@ -539,7 +559,18 @@ public class GameState {
       }
 
       if (shouldCreateOrb) {
-        this.orbs.add(new Orb(pos, OrbSize.LARGE, orbColor));
+        // Skip orbs based on skipRatio to reduce total orb count
+        if (skipRatio > 0 && Math.random() < skipRatio) {
+          continue; // Skip this orb entirely
+        }
+
+        // Randomize position by +/- half snake radius in both X and Y for scattered look
+        double halfRadius = snakeRadius / 2.0;
+        double offsetX = (Math.random() * 2 * halfRadius) - halfRadius;
+        double offsetY = (Math.random() * 2 * halfRadius) - halfRadius;
+        Position scatteredPos = new Position(pos.x() + offsetX, pos.y() + offsetY);
+
+        this.orbs.add(new Orb(scatteredPos, OrbSize.LARGE, orbColor));
         this.numDeathOrbs++;
         lastOrbPosition = pos;
       }
@@ -599,7 +630,7 @@ public class GameState {
       server.handleUserDied(thisUser, webSocket, this);
       this.clearUserOrbAccumulator(thisUser);
       UpdatePositionHandler.clearUserBoostAccumulator(thisUser);
-      this.generateDeathOrbs(deadSnakePositions, deadSkinId);
+      this.generateDeathOrbs(deadSnakePositions, deadSkinId, thisUserScore);
       return;
     }
 
@@ -632,7 +663,7 @@ public class GameState {
         server.handleUserDied(thisUser, webSocket, this);
         this.clearUserOrbAccumulator(thisUser);
         UpdatePositionHandler.clearUserBoostAccumulator(thisUser);
-        this.generateDeathOrbs(deadSnakePositions, deadSkinId);
+        this.generateDeathOrbs(deadSnakePositions, deadSkinId, thisUserScore);
         return;
       }
     }
@@ -712,5 +743,18 @@ public class GameState {
    */
   public void clearUserOrbAccumulator(User user) {
     userOrbSegmentAccumulator.remove(user);
+  }
+
+  /**
+   * Removes a user from all GameState internal maps.
+   * Call this when a user disconnects or dies to properly clean up their data.
+   * @param user : the user to remove
+   */
+  public void removeUser(User user) {
+    this.userToOwnPositions.remove(user);
+    this.userToOthersPositions.remove(user);
+    this.userToSnakeDeque.remove(user);
+    this.userLocks.remove(user);
+    this.userOrbSegmentAccumulator.remove(user);
   }
 }

@@ -220,6 +220,8 @@ public class SlitherServer extends WebSocketServer {
     if (gameState == null)
       return;
     gameState.updateOtherUsersWithRemovedPositions(user, webSocket, this.gameStateToSockets.get(gameState), this);
+    // Remove user from GameState's internal maps (fixes "username already taken" bug)
+    gameState.removeUser(user);
     this.handleUserDied(user, webSocket, gameState);
   }
 

@@ -50,6 +50,15 @@ function adjustColorForGradient(hex: string): string {
 }
 
 /**
+ * Lightens a hex color for use as border with 25% opacity
+ */
+function lightenColorForBorder(hex: string): string {
+  const [h, s, l] = hexToHSL(hex);
+  const newL = Math.min(100, l + 20);
+  return `hsla(${h}, ${s}%, ${newL}%, 0.25)`;
+}
+
+/**
  * Renders all other snakes, given a set of each segment's positions (serialized
  * as JSON) - renders a circle for every single position to render them.
  * @param positions the serialized positions of all the other snakes
@@ -91,6 +100,7 @@ export default function OtherSnake({
         const skin = getSkinById(skinId);
         const isHead = headPositions.has(posString);
         const darkerColor = adjustColorForGradient(skin.color);
+        const lighterColor = lightenColorForBorder(skin.color);
         const isBoosting = boostingMap.get(skinId) || false;
 
         // Boost glow effect
@@ -136,7 +146,7 @@ export default function OtherSnake({
                   className={`other-snake-head-bg ${isBoosting ? "boosting" : ""}`}
                   style={{
                     background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
-                    borderColor: darkerColor,
+                    border: `${0.35}px solid ${lighterColor}`,
                     transform: `rotate(${rotation}deg)`,
                     boxShadow: boostGlow,
                   }}
@@ -163,7 +173,7 @@ export default function OtherSnake({
                 left: bodyPart.x + offset.x,
                 top: bodyPart.y + offset.y,
                 background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
-                borderColor: darkerColor,
+                border: `${0.35}px solid ${lighterColor}`,
                 boxShadow: boostGlow,
                 transform: `translate(-50%, -50%) scale(${scale})`,
               }}
