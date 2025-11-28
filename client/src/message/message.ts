@@ -20,9 +20,10 @@ export default interface Message {
 export interface NewClientNoCodeMessage {
   /** The type (purpose) of the message sent or received */
   type: MessageType.NEW_CLIENT_NO_CODE;
-  /** The data sent with the message - the client's username */
+  /** The data sent with the message - the client's username and skin ID */
   data: {
     username: string;
+    skinId: string;
   };
 }
 
@@ -34,11 +35,12 @@ export interface NewClientOldCodeMessage {
   /** The type (purpose) of the message sent or received */
   type: MessageType.NEW_CLIENT_WITH_CODE;
   /**
-   * The data sent with the message - the client's username and
+   * The data sent with the message - the client's username, skin ID, and
    * specified game code for the lobby to join
    */
   data: {
     username: string;
+    skinId: string;
     gameCode: string;
   };
 }
@@ -65,15 +67,18 @@ export interface UpdatePositionMessage {
  * the client for a new game.
  * @param socket the client's websocket for communication with the server
  * @param username the client's username
+ * @param skinId the client's selected skin ID
  */
 export function sendNewClientNoCodeMessage(
   socket: WebSocket,
-  username: string
+  username: string,
+  skinId: string
 ): void {
   const message: NewClientNoCodeMessage = {
     type: MessageType.NEW_CLIENT_NO_CODE,
     data: {
       username: username,
+      skinId: skinId,
     },
   };
   socket.send(JSON.stringify(message));
@@ -84,17 +89,20 @@ export function sendNewClientNoCodeMessage(
  * the client for a joining a game with the given game code.
  * @param socket the client's websocket for communication with the server
  * @param username the client's username
+ * @param skinId the client's selected skin ID
  * @param gameCode the game code of the lobby to join
  */
 export function sendNewClientWithCodeMessage(
   socket: WebSocket,
   username: string,
+  skinId: string,
   gameCode: string
 ): void {
   const message: NewClientOldCodeMessage = {
     type: MessageType.NEW_CLIENT_WITH_CODE,
     data: {
       username: username,
+      skinId: skinId,
       gameCode: gameCode,
     },
   };

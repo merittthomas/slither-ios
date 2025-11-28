@@ -153,6 +153,7 @@ export default function Home({
         gameState,
         setGameState,
         username,
+        gameState.snake.skin?.id || "astro",
         false
       );
     } catch (e) {
@@ -186,6 +187,7 @@ export default function Home({
         gameState,
         setGameState,
         username,
+        gameState.snake.skin?.id || "astro",
         true,
         inputGamecode
       );

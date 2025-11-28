@@ -158,9 +158,10 @@ public class GameState {
    * @param gameStateSockets : the list of other clients' sockets to receieve the update in this client's snake length
    * @param server : the server through which to serialize the message to be sent via webSocket
    */
-  private void sendOthersIncreasedLengthBodyParts(WebSocket webSocket, List<Position> newBodyParts, Set<WebSocket> gameStateSockets, SlitherServer server) {
+  private void sendOthersIncreasedLengthBodyParts(WebSocket webSocket, List<Position> newBodyParts, Set<WebSocket> gameStateSockets, SlitherServer server, String skinId) {
     Map<String, Object> data = new HashMap<>();
     data.put("newBodyParts", newBodyParts);
+    data.put("skinId", skinId);
     Message message = new Message(MessageType.INCREASE_OTHER_LENGTH, data);
     String jsonMessage = server.serialize(message);
     for (WebSocket socket : gameStateSockets) {
@@ -184,7 +185,7 @@ public class GameState {
       newSnake.add(position);
       this.userToSnakeDeque.get(thisUser).addLast(position);
     }
-    this.sendOthersIncreasedLengthBodyParts(webSocket, newSnake, gameStateSockets, server);
+    this.sendOthersIncreasedLengthBodyParts(webSocket, newSnake, gameStateSockets, server, thisUser.getSkinId());
   }
 
   /**
@@ -207,6 +208,7 @@ public class GameState {
     Map<String, Object> data = new HashMap<>();
     data.put("add", toAdd);
     data.put("remove", toRemove);
+    data.put("skinId", thisUser.getSkinId());
     Message message = new Message(MessageType.UPDATE_POSITION, data);
     String jsonResponse = server.serialize(message);
 
@@ -312,12 +314,14 @@ public class GameState {
    *
    * @param positions - a List of Positions: the positions of the body parts of the snake that has
    *                  died and needs to be converted ("dissolved") into death orbs.
+   * @param skinId - the skin ID of the dead snake, used to color the orbs
    */
-  private void generateDeathOrbs(List<Position> positions) {
+  private void generateDeathOrbs(List<Position> positions, String skinId) {
+    String orbColor = OrbColor.getColorForSkin(skinId);
     for (int i=0; i < positions.size(); i++) {
       if (i % 4 != 0)
         continue;
-      this.orbs.add(new Orb(positions.get(i), OrbSize.LARGE, OrbColor.generate()));
+      this.orbs.add(new Orb(positions.get(i), OrbSize.LARGE, orbColor));
       this.numDeathOrbs++;
     }
     this.sendOrbData();
@@ -356,11 +360,12 @@ public class GameState {
 
       List<Position> deadSnakePositions = new ArrayList<>();
       deadSnakePositions.addAll(this.userToSnakeDeque.get(thisUser));
+      String deadSkinId = thisUser.getSkinId();
       this.userToOwnPositions.remove(thisUser);
       this.userToOthersPositions.remove(thisUser);
       this.userToSnakeDeque.remove(thisUser);
       server.handleUserDied(thisUser, webSocket, this);
-      this.generateDeathOrbs(deadSnakePositions);
+      this.generateDeathOrbs(deadSnakePositions, deadSkinId);
       return;
     }
 
@@ -374,12 +379,13 @@ public class GameState {
 
         List<Position> deadSnakePositions = new ArrayList<>();
         deadSnakePositions.addAll(this.userToSnakeDeque.get(thisUser));
+        String deadSkinId = thisUser.getSkinId();
         this.updateOtherUsersWithRemovedPositions(thisUser, webSocket, gameStateSockets, server);
         this.userToOwnPositions.remove(thisUser);
         this.userToOthersPositions.remove(thisUser);
         this.userToSnakeDeque.remove(thisUser);
         server.handleUserDied(thisUser, webSocket, this);
-        this.generateDeathOrbs(deadSnakePositions);
+        this.generateDeathOrbs(deadSnakePositions, deadSkinId);
         return;
       }
     }
@@ -412,7 +418,7 @@ public class GameState {
       // increase the length of the user's own snake with their client
       this.sendOwnIncreasedLengthBodyParts(webSocket, newBodyParts, server);
       // increase the length of the user's snake for every other client in the same game
-      this.sendOthersIncreasedLengthBodyParts(webSocket, newBodyParts, gameStateSockets, server);
+      this.sendOthersIncreasedLengthBodyParts(webSocket, newBodyParts, gameStateSockets, server, thisUser.getSkinId());
     }
   }
 

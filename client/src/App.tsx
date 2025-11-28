@@ -49,6 +49,9 @@ export default function App(): JSX.Element {
   const [gameState, setGameState] = useState<GameState>({
     snake: snake,
     otherBodies: new Set<string>([]),
+    otherPlayerSkins: new Map<string, string>(),
+    otherPlayerHeads: new Map<string, string>(),
+    otherPlayerRotations: new Map<string, number>(),
     orbs: orbSet,
     scores: new Map(),
     gameCode: "abc",
@@ -101,6 +104,7 @@ let socket: WebSocket;
  * @param gameState A metadata representation of the current state of the game
  * @param setGameState A function that sets the current state of the game
  * @param username The username of the client
+ * @param skinId The ID of the client's selected snake skin
  * @param hasGameCode A boolean representing whether or not the client is
  * joining an existing game with a game code
  * @param gameCode The game code entered by the client, if applicable
@@ -114,6 +118,7 @@ export function registerSocket(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   username: string,
+  skinId: string,
   hasGameCode: boolean,
   gameCode: string = ""
 ) {
@@ -131,9 +136,9 @@ export function registerSocket(
     // Store username for later use when player dies
     localStorage.setItem('currentUsername', username);
     if (hasGameCode) {
-      sendNewClientWithCodeMessage(socket, username, gameCode);
+      sendNewClientWithCodeMessage(socket, username, skinId, gameCode);
     } else {
-      sendNewClientNoCodeMessage(socket, username);
+      sendNewClientNoCodeMessage(socket, username, skinId);
     }
   };
 
@@ -160,12 +165,34 @@ export function registerSocket(
         const updatePositionMessage: UpdatePositionMessage = message;
         const toAdd: Position = updatePositionMessage.data.add;
         const toRemove: Position = updatePositionMessage.data.remove;
+        const skinId: string = message.data.skinId || "astro";
         const newGameState: GameState = { ...gameState };
         console.log(
           "gameState otherbodies size: " + gameState.otherBodies.size
         );
-        newGameState.otherBodies.delete(JSON.stringify(toRemove));
-        newGameState.otherBodies.add(JSON.stringify(toAdd));
+        const removeKey = JSON.stringify(toRemove);
+        const addKey = JSON.stringify(toAdd);
+        newGameState.otherBodies.delete(removeKey);
+        newGameState.otherPlayerSkins.delete(removeKey);
+        newGameState.otherBodies.add(addKey);
+        newGameState.otherPlayerSkins.set(addKey, skinId);
+
+        // Calculate rotation based on movement direction (from previous head to new head)
+        const prevHeadKey = newGameState.otherPlayerHeads.get(skinId);
+        if (prevHeadKey) {
+          const prevHead: Position = JSON.parse(prevHeadKey);
+          const dx = toAdd.x - prevHead.x;
+          const dy = toAdd.y - prevHead.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance > 2) {
+            const angleRadians = Math.atan2(dy, dx);
+            const angleDegrees = angleRadians * (180 / Math.PI);
+            newGameState.otherPlayerRotations.set(skinId, angleDegrees);
+          }
+        }
+
+        // Track the head position for this player (the added position is always the new head)
+        newGameState.otherPlayerHeads.set(skinId, addKey);
         setGameState(newGameState);
         break;
       }
@@ -187,12 +214,20 @@ export function registerSocket(
         const otherUserDiedMessage: OtherUserDiedMessage = message;
         const removePositions: Position[] =
           otherUserDiedMessage.data.removePositions;
+        const deadSkinId: string = message.data.skinId || "";
         console.log("removePositions");
         console.log(removePositions);
         const newGameState: GameState = { ...gameState };
         removePositions.forEach((position: Position) => {
-          newGameState.otherBodies.delete(JSON.stringify(position));
+          const posKey = JSON.stringify(position);
+          newGameState.otherBodies.delete(posKey);
+          newGameState.otherPlayerSkins.delete(posKey);
         });
+        // Remove the head and rotation tracking for this dead player
+        if (deadSkinId) {
+          newGameState.otherPlayerHeads.delete(deadSkinId);
+          newGameState.otherPlayerRotations.delete(deadSkinId);
+        }
         setGameState(newGameState);
         break;
       }
@@ -241,9 +276,12 @@ export function registerSocket(
         const increaseLengthMessage: IncreaseOtherLengthMessage = message;
         const newBodyParts: Position[] =
           increaseLengthMessage.data.newBodyParts;
+        const skinId: string = message.data.skinId || "astro";
         const newGameState: GameState = { ...gameState };
         newBodyParts.forEach((bodyPart: Position) => {
-          newGameState.otherBodies.add(JSON.stringify(bodyPart));
+          const key = JSON.stringify(bodyPart);
+          newGameState.otherBodies.add(key);
+          newGameState.otherPlayerSkins.set(key, skinId);
         });
         setGameState(newGameState);
         break;

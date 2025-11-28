@@ -10,15 +10,18 @@ public class User {
 
   private final String id;
   private final String username;
+  private final String skinId;
 
   /**
    * User object constructor -- assigning it a random universally unique
-   * identifier (in string form) and a username (as per the input)
+   * identifier (in string form), a username, and a skin ID
    * @param username : the name to which this user is publicly assigned in-game
+   * @param skinId : the ID of the snake skin this user has selected
    */
-  public User(String username) {
+  public User(String username, String skinId) {
     this.id = UUID.randomUUID().toString();
     this.username = username;
+    this.skinId = skinId;
   }
 
   /**
@@ -35,6 +38,14 @@ public class User {
    */
   public String getUsername() {
     return this.username;
+  }
+
+  /**
+   * Accessor method to retrieve the user's skin ID
+   * @return this user's skinId (type: String)
+   */
+  public String getSkinId() {
+    return this.skinId;
   }
 
   /**

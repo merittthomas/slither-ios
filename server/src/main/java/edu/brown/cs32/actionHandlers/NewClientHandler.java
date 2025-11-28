@@ -34,7 +34,10 @@ public class NewClientHandler {
   public User handleNewClientWithCode(Message message, WebSocket websocket, SlitherServer server) throws MissingFieldException, ClientAlreadyExistsException, IncorrectGameCodeException {
     if (!message.data().containsKey("username") || !message.data().containsKey("gameCode"))
       throw new MissingFieldException(message, MessageType.JOIN_ERROR);
-    User user = new User(message.data().get("username").toString());
+    String skinId = message.data().containsKey("skinId")
+        ? message.data().get("skinId").toString()
+        : "astro";  // Default fallback for backward compatibility
+    User user = new User(message.data().get("username").toString(), skinId);
     String gameCode = message.data().get("gameCode").toString();
     if (!server.getExistingGameCodes().contains(gameCode))
       throw new IncorrectGameCodeException(MessageType.JOIN_ERROR);
@@ -62,7 +65,10 @@ public class NewClientHandler {
   public User handleNewClientNoCode(Message message, WebSocket websocket, SlitherServer server) throws MissingFieldException, ClientAlreadyExistsException {
     if (!message.data().containsKey("username"))
       throw new MissingFieldException(message, MessageType.JOIN_ERROR);
-    User user = new User(message.data().get("username").toString());
+    String skinId = message.data().containsKey("skinId")
+        ? message.data().get("skinId").toString()
+        : "astro";  // Default fallback for backward compatibility
+    User user = new User(message.data().get("username").toString(), skinId);
     boolean result = server.addWebsocketUser(websocket, user);
     if (!result)
       throw new ClientAlreadyExistsException(MessageType.JOIN_ERROR);
