@@ -197,12 +197,12 @@ export default function GameCanvas({
 
   return (
     <div>
-      <Snake snake={gameState.snake} offset={offset} isBoosting={boostActive} />
+      <Snake snake={gameState.snake} offset={offset} isBoosting={boostActive} score={scores.get(username) || 0} />
       {Array.from(gameState.orbs).map((orb: OrbData, ind: number) => (
         <Orb orbInfo={orb} offset={offset} key={ind} />
       ))}
-      <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} usernameMap={gameState.otherPlayerUsernames} boostingMap={gameState.otherPlayerBoosting} />
-      <Border boundaries={canvasSize} offset={offset} />
+      <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} usernameMap={gameState.otherPlayerUsernames} boostingMap={gameState.otherPlayerBoosting} scores={scores} />
+      <Border boundaries={canvasSize} offset={offset} score={scores.get(username) || 0} />
     </div>
   );
 }

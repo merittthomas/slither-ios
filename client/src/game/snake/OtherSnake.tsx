@@ -1,5 +1,6 @@
 import { Position } from "../GameState";
 import { getSkinById } from "./SnakeSkins";
+import { calculateSnakeScale } from "./SnakeScaling";
 
 /**
  * Converts hex color to HSL
@@ -68,6 +69,7 @@ export default function OtherSnake({
   rotationMap,
   usernameMap,
   boostingMap,
+  scores,
 }: {
   positions: Set<string>;
   offset: Position;
@@ -76,6 +78,7 @@ export default function OtherSnake({
   rotationMap: Map<string, number>;
   usernameMap: Map<string, string>;
   boostingMap: Map<string, boolean>;
+  scores: Map<string, number>;
 }): JSX.Element {
   // Create a set of head positions for quick lookup
   const headPositions = new Set(headMap.values());
@@ -94,6 +97,11 @@ export default function OtherSnake({
         const boostGlow = isBoosting
           ? `0 0 15px ${skin.color}, 0 0 30px ${skin.color}, 0 0 45px ${skin.color}`
           : "none";
+
+        // Calculate scale based on this player's score
+        const username = usernameMap.get(skinId) || "";
+        const playerScore = scores.get(username) || 0;
+        const scale = calculateSnakeScale(playerScore);
 
         if (isHead) {
           // Get rotation and username for this player's head
@@ -120,6 +128,7 @@ export default function OtherSnake({
                   left: bodyPart.x + offset.x,
                   top: bodyPart.y + offset.y,
                   zIndex: 1000,
+                  transform: `translate(-50%, -50%) scale(${scale})`,
                 }}
               >
                 {/* Circular gradient background */}
@@ -156,6 +165,7 @@ export default function OtherSnake({
                 background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
                 borderColor: darkerColor,
                 boxShadow: boostGlow,
+                transform: `translate(-50%, -50%) scale(${scale})`,
               }}
             ></div>
           );

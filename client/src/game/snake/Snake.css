@@ -1,6 +1,6 @@
 .snake {
   position: absolute;
-  transform: translate(-50%, -50%);
+  /* transform is applied inline with scale */
   height: 35px;
   width: 35px;
   border-radius: 50%;
@@ -13,7 +13,7 @@
   position: absolute;
   height: 35px;
   width: 35px;
-  transform: translate(-50%, -50%);
+  /* transform is applied inline with scale */
 }
 
 /* Circular background behind snake head */
@@ -38,7 +38,7 @@
 /* Other players' snake segments - with CSS transition for smooth interpolation */
 .other-snake {
   position: absolute;
-  transform: translate(-50%, -50%);
+  /* transform is applied inline with scale */
   height: 35px;
   width: 35px;
   border-radius: 50%;
@@ -52,7 +52,7 @@
   position: absolute;
   height: 35px;
   width: 35px;
-  transform: translate(-50%, -50%);
+  /* transform is applied inline with scale */
   transition: left 50ms linear, top 50ms linear;
 }
 

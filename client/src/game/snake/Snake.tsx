@@ -3,6 +3,7 @@ import { useRef } from "react";
 import "./Snake.css";
 import { Position } from "../GameState";
 import { SnakeSkin } from "./SnakeSkins";
+import { calculateSnakeScale } from "./SnakeScaling";
 
 /** A metadata representation of a snake */
 export interface SnakeData {
@@ -90,13 +91,16 @@ export default function Snake({
   snake,
   offset,
   isBoosting = false,
+  score = 0,
 }: {
   snake: SnakeData;
   offset: Position;
   isBoosting?: boolean;
+  score?: number;
 }): JSX.Element {
   const bodyArray = snake.snakeBody.toArray();
   const lastRotationRef = useRef<number>(0);
+  const scale = calculateSnakeScale(score);
 
   // Calculate rotation based on actual body positions
   let headRotation = lastRotationRef.current;
@@ -150,6 +154,7 @@ export default function Snake({
                 left: bodyPart.x + offset.x,
                 top: bodyPart.y + offset.y,
                 zIndex: zIndex,
+                transform: `translate(-50%, -50%) scale(${scale})`,
               }}
             >
               {/* Circular gradient background */}
@@ -186,6 +191,7 @@ export default function Snake({
                 borderColor: darkerColor,
                 zIndex: zIndex,
                 boxShadow: boostGlow,
+                transform: `translate(-50%, -50%) scale(${scale})`,
               }}
             />
           );

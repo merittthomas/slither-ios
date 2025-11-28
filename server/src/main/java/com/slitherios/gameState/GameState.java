@@ -2,6 +2,7 @@ package com.slitherios.gameState;
 
 import com.slitherios.actionHandlers.UpdatePositionHandler;
 import com.slitherios.exceptions.InvalidRemoveCoordinateException;
+import com.slitherios.leaderboard.Leaderboard;
 import com.slitherios.message.Message;
 import com.slitherios.message.MessageType;
 import com.slitherios.orb.OrbColor;
@@ -10,6 +11,7 @@ import com.slitherios.orb.Orb;
 import com.slitherios.orb.OrbGenerator;
 import com.slitherios.orb.OrbSize;
 import com.slitherios.server.SlitherServer;
+import com.slitherios.snake.SnakeScaling;
 import com.slitherios.user.User;
 
 import java.util.ArrayList;
@@ -40,9 +42,10 @@ public class GameState {
   private final Map<User, Set<Position>> userToOthersPositions; // maps each user to the positions of every other snake's body parts
   private final Map<User, Set<Position>> userToOwnPositions; // maps each user to their own snake's body parts
   private final Map<User, Deque<Position>> userToSnakeDeque; // maps each user to a double ended queue with their body parts (in order)
-  private final int SNAKE_CIRCLE_RADIUS = 35; // radius of each body part of the snakes
+  private final Map<Position, User> positionToUser; // maps each position to the user who owns it (for collision radius calculation)
+  private final int BASE_SNAKE_RADIUS = 35; // base radius of each body part of the snakes (used for orb collision)
   private final Map<User, Double> userOrbSegmentAccumulator = new ConcurrentHashMap<>(); // tracks accumulated points toward next body segment
-  private static final int POINTS_PER_SEGMENT = 2; // points required to gain one body segment (1 segment per 2 points)
+  // Points per segment now calculated dynamically via SnakeScaling.calculatePointsPerSegment()
   private final Map<User, ReentrantLock> userLocks = new ConcurrentHashMap<>(); // per-user locks for thread safety
 
   /**
@@ -63,6 +66,7 @@ public class GameState {
     this.userToOthersPositions = new HashMap<>();
     this.userToOwnPositions = new HashMap<>();
     this.userToSnakeDeque = new HashMap<>();
+    this.positionToUser = new ConcurrentHashMap<>();
     ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(1);
     exec.scheduleAtFixedRate(new Runnable() {
       public void run() {
@@ -149,6 +153,7 @@ public class GameState {
     // Add the new head position
     this.userToOwnPositions.get(thisUser).add(toAdd);
     snakeDeque.addFirst(toAdd);
+    this.positionToUser.put(toAdd, thisUser); // Track position ownership
 
     // Server-authoritative: remove from server's actual tail position, not client's expected
     // This handles cases where boost has removed segments the client doesn't know about yet
@@ -156,6 +161,7 @@ public class GameState {
     if (actualTail != null) {
       snakeDeque.removeLast();
       this.userToOwnPositions.get(thisUser).remove(actualTail);
+      this.positionToUser.remove(actualTail); // Clean up position ownership
     }
     return actualTail;
   }
@@ -255,6 +261,7 @@ public class GameState {
       if (removed != null) {
         removedPositions.add(removed);
         this.userToOwnPositions.get(thisUser).remove(removed);
+        this.positionToUser.remove(removed); // Clean up position ownership
         // Remove from other users' tracking
         for (User user : this.userToOthersPositions.keySet()) {
           if (!user.equals(thisUser)) {
@@ -295,6 +302,7 @@ public class GameState {
       Position position = new Position(600, 100 + 5 * i);
       newSnake.add(position);
       this.userToSnakeDeque.get(thisUser).addLast(position);
+      this.positionToUser.put(position, thisUser); // Track position ownership
     }
     this.sendOthersIncreasedLengthBodyParts(webSocket, newSnake, gameStateSockets, server, thisUser.getSkinId());
   }
@@ -397,26 +405,27 @@ public class GameState {
 
   /**
    * Computes the coordinates (the Position) at which a new body part should be created for a user
-   * (when they eat an orb) so that growth in the length of the snake looks natural and continuous.
+   * (when they eat an orb). New segments stack at the current tail position - they only become
+   * visible as the snake moves and the tail extends. This prevents segments from shooting outward
+   * when eating large orbs.
    *
    * @param thisUser - a User: the user whose snake's new body part position needs to be computed.
    * @return a Position: the position at which the new body part for the user's snake will be
-   * created.
+   * created (same as current tail position).
    */
   private Position getNewBodyPartPosition(User thisUser) {
     Deque<Position> userBodyParts = this.userToSnakeDeque.get(thisUser);
     Position newPosition;
     if (userBodyParts.size() == 0)
       newPosition = new Position(600.0, 100.0);
-    else if (userBodyParts.size() == 1)
-      newPosition = new Position(Math.round(userBodyParts.peekFirst().x() * 100) / 100.0, Math.round((userBodyParts.peekFirst().y() + 5) * 100) / 100.0);
     else {
-      List<Position> userLastTwoBodyParts = this.getLastTwoBodyParts(userBodyParts);
-      double xDifference = userLastTwoBodyParts.get(0).x() - userLastTwoBodyParts.get(1).x();
-      double yDifference = userLastTwoBodyParts.get(0).y() - userLastTwoBodyParts.get(1).y();
-      double x = userLastTwoBodyParts.get(1).x() - xDifference;
-      double y = userLastTwoBodyParts.get(1).y() - yDifference;
-      newPosition = new Position(Math.round(x * 100) / 100.0, Math.round(y * 100) / 100.0);
+      // Stack new segments at the current tail position
+      // They will only become visible as the snake moves and the tail naturally extends
+      Position tailPosition = userBodyParts.peekLast();
+      newPosition = new Position(
+        Math.round(tailPosition.x() * 100) / 100.0,
+        Math.round(tailPosition.y() * 100) / 100.0
+      );
     }
     return newPosition;
   }
@@ -459,12 +468,23 @@ public class GameState {
     Set<Position> otherBodies = this.userToOthersPositions.get(thisUser);
     Set<Orb> allOrbs = new HashSet<>(this.orbs);
 
+    // Get this user's score for dynamic collision radius
+    Leaderboard leaderboard = server.getLeaderboard(this.gameCode);
+    int thisUserScore = 0;
+    if (leaderboard != null) {
+      Integer score = leaderboard.getCurrentScore(thisUser);
+      if (score != null) {
+        thisUserScore = score;
+      }
+    }
+    double thisUserCollisionRadius = SnakeScaling.calculateCollisionRadius(thisUserScore);
+
     // check if the user's snake has collided with (gone beyond) the game map boundary -- kill
-    // the snake if this happens
-    if( latestHeadPosition.x() - this.SNAKE_CIRCLE_RADIUS <= -1500 ||
-        latestHeadPosition.x() + this.SNAKE_CIRCLE_RADIUS >= 1500 ||
-        latestHeadPosition.y() - this.SNAKE_CIRCLE_RADIUS <= -1500 ||
-        latestHeadPosition.y() + this.SNAKE_CIRCLE_RADIUS >= 1500
+    // the snake if this happens (using dynamic radius based on score)
+    if( latestHeadPosition.x() - thisUserCollisionRadius <= -1500 ||
+        latestHeadPosition.x() + thisUserCollisionRadius >= 1500 ||
+        latestHeadPosition.y() - thisUserCollisionRadius <= -1500 ||
+        latestHeadPosition.y() + thisUserCollisionRadius >= 1500
       ) {
       Message userDiedMessage = new Message(MessageType.YOU_DIED, new HashMap<>());
       String jsonMessage = server.serialize(userDiedMessage);
@@ -485,9 +505,20 @@ public class GameState {
     }
 
     // check if the user's snake has collided with any other snakes in the same game -- kill the
-    // user's snake if this happens
+    // user's snake if this happens (using dynamic radii based on both snakes' scores)
     for (Position otherBodyPosition : otherBodies) {
-      if (this.distance(latestHeadPosition, otherBodyPosition) <= this.SNAKE_CIRCLE_RADIUS) {
+      // Get the owner of this body position to calculate their collision radius
+      User otherUser = this.positionToUser.get(otherBodyPosition);
+      double otherUserCollisionRadius = SnakeScaling.calculateCollisionRadius(0); // default to base radius
+      if (otherUser != null && leaderboard != null) {
+        Integer otherScore = leaderboard.getCurrentScore(otherUser);
+        if (otherScore != null) {
+          otherUserCollisionRadius = SnakeScaling.calculateCollisionRadius(otherScore);
+        }
+      }
+      // Collision occurs when distance is less than sum of radii (two circles touching)
+      double collisionThreshold = thisUserCollisionRadius + otherUserCollisionRadius;
+      if (this.distance(latestHeadPosition, otherBodyPosition) <= collisionThreshold) {
         Message userDiedMessage = new Message(MessageType.YOU_DIED, new HashMap<>());
         String jsonMessage = server.serialize(userDiedMessage);
         webSocket.send(jsonMessage);
@@ -508,12 +539,12 @@ public class GameState {
     }
 
     // Check if the user's snake has eaten any orbs -- remove the eaten orbs and increase the length
-    // of the snake when this happens (only add 1 body segment per 10 points)
+    // of the snake when this happens (using dynamic radius based on score)
     List<Position> newBodyParts = new ArrayList<>();
     boolean orbCollided = false;
     for (Orb orb : allOrbs) {
       Position orbPosition = orb.getPosition();
-      if (this.distance(latestHeadPosition, orbPosition) <= this.SNAKE_CIRCLE_RADIUS) {
+      if (this.distance(latestHeadPosition, orbPosition) <= thisUserCollisionRadius) {
         this.removeOrb(orbPosition);
         orbCollided = true;
         Integer orbValue = switch(orb.getSize()) {
@@ -523,9 +554,11 @@ public class GameState {
         };
         server.handleUpdateScore(thisUser, this, orbValue);
 
-        // Accumulate points toward segments (10 points = 1 segment)
+        // Accumulate points toward segments using dynamic points-per-segment based on score
+        // Larger snakes need more points per segment (diminishing returns)
+        double pointsPerSegment = SnakeScaling.calculatePointsPerSegment(thisUserScore);
         double segmentAccum = userOrbSegmentAccumulator.getOrDefault(thisUser, 0.0);
-        segmentAccum += (double) orbValue / POINTS_PER_SEGMENT;
+        segmentAccum += (double) orbValue / pointsPerSegment;
 
         // Add segments only when accumulator reaches 1.0+
         int segmentsToAdd = (int) segmentAccum;
@@ -535,6 +568,7 @@ public class GameState {
           // Also add to server's snake deque to keep server's length accurate
           this.userToSnakeDeque.get(thisUser).addLast(newPosition);
           this.userToOwnPositions.get(thisUser).add(newPosition);
+          this.positionToUser.put(newPosition, thisUser); // Track position ownership
         }
         segmentAccum -= segmentsToAdd;
         userOrbSegmentAccumulator.put(thisUser, segmentAccum);
