@@ -160,6 +160,13 @@ export function registerSocket(
         break;
       }
 
+      // username already taken in this lobby
+      case MessageType.USERNAME_TAKEN: {
+        setErrorText("Username already taken in this lobby. Please choose a different name.");
+        setGameStarted(false);
+        break;
+      }
+
       // updates position of all snakes on screen
       case MessageType.UPDATE_POSITION: {
         console.log("UPDATE POSITION MESSAGE");

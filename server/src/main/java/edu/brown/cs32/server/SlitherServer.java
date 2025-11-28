@@ -11,6 +11,7 @@ import edu.brown.cs32.exceptions.MissingFieldException;
 import edu.brown.cs32.exceptions.MissingGameStateException;
 import edu.brown.cs32.exceptions.SocketAlreadyExistsException;
 import edu.brown.cs32.exceptions.UserNoGameCodeException;
+import edu.brown.cs32.exceptions.UsernameTakenException;
 import edu.brown.cs32.exceptions.GameCodeNoGameStateException;
 import edu.brown.cs32.exceptions.GameCodeNoLeaderboardException;
 import edu.brown.cs32.gameState.GameState;
@@ -72,6 +73,16 @@ public class SlitherServer extends WebSocketServer {
    * @return a set of strings, containing all of the currently valid game codes.
    */
   public Set<String> getExistingGameCodes() { return this.gameCodeToLeaderboard.keySet(); }
+
+  /**
+   * Returns the GameState associated with the provided game code.
+   *
+   * @param gameCode - a String: The game code for which to retrieve the GameState.
+   * @return the GameState associated with the game code, or null if not found.
+   */
+  public GameState getGameStateByCode(String gameCode) {
+    return this.gameCodeToGameState.get(gameCode);
+  }
 
   /**
    * Sends a json String message (messageJson) to all of the clients (via their websockets) within
@@ -464,6 +475,9 @@ public class SlitherServer extends WebSocketServer {
       webSocket.send(jsonResponse);
     } catch (MissingGameStateException e) {
       jsonResponse = this.serialize(this.generateMessage("Game state cannot be found", e.messageType));
+      webSocket.send(jsonResponse);
+    } catch (UsernameTakenException e) {
+      jsonResponse = this.serialize(this.generateMessage("Username already taken in this lobby", e.messageType));
       webSocket.send(jsonResponse);
     }
   }

@@ -20,5 +20,6 @@ public enum MessageType {
   ERROR,
   SUCCESS,
   JOIN_ERROR,
-  JOIN_SUCCESS
+  JOIN_SUCCESS,
+  USERNAME_TAKEN
 }

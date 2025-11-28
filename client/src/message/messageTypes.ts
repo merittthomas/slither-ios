@@ -19,6 +19,7 @@ enum MessageType {
   SUCCESS = "SUCCESS",
   JOIN_ERROR = "JOIN_ERROR",
   JOIN_SUCCESS = "JOIN_SUCCESS",
+  USERNAME_TAKEN = "USERNAME_TAKEN",
 }
 
 export default MessageType;

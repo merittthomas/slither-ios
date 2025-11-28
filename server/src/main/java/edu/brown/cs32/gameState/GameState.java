@@ -430,4 +430,18 @@ public class GameState {
   public String getGameCode() {
     return this.gameCode;
   }
+
+  /**
+   * Checks if a username is already taken in this game state
+   * @param username : the username to check
+   * @return true if the username is already taken (case-insensitive), false otherwise
+   */
+  public boolean isUsernameTaken(String username) {
+    for (User user : this.userToSnakeDeque.keySet()) {
+      if (user.getUsername().equalsIgnoreCase(username)) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

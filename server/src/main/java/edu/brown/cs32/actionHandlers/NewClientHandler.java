@@ -3,6 +3,8 @@ package edu.brown.cs32.actionHandlers;
 import edu.brown.cs32.exceptions.ClientAlreadyExistsException;
 import edu.brown.cs32.exceptions.IncorrectGameCodeException;
 import edu.brown.cs32.exceptions.MissingFieldException;
+import edu.brown.cs32.exceptions.UsernameTakenException;
+import edu.brown.cs32.gameState.GameState;
 import edu.brown.cs32.message.Message;
 import edu.brown.cs32.message.MessageType;
 import edu.brown.cs32.server.SlitherServer;
@@ -18,29 +20,38 @@ public class NewClientHandler {
   /**
    * Activated when SlitherServer receives NEW_CLIENT_WITH_CODE method to
    * add a new user to an existing game (using an existing game code)
-   * 
+   *
    * @param message  : the deserialized message from the client containing
    * information about the new user's username and the game code corresponding
    * to the game to which they should be added
    * @param websocket : the WebSocket corresponding to the user who is being
    * added to the existing game
    * @param server : the server through which the new user is assigned
-   * a websocket and game code 
+   * a websocket and game code
    * @return the new User object being added to the existing game
    * @throws MissingFieldException if the deserialized message does not contain 'username' and 'gameCode' keyed fields
    * @throws ClientAlreadyExistsException if the socket already has a corresponding user
    * @throws IncorrectGameCodeException if the receieved game code does not exist
+   * @throws UsernameTakenException if the username is already taken in the lobby
    */
-  public User handleNewClientWithCode(Message message, WebSocket websocket, SlitherServer server) throws MissingFieldException, ClientAlreadyExistsException, IncorrectGameCodeException {
+  public User handleNewClientWithCode(Message message, WebSocket websocket, SlitherServer server) throws MissingFieldException, ClientAlreadyExistsException, IncorrectGameCodeException, UsernameTakenException {
     if (!message.data().containsKey("username") || !message.data().containsKey("gameCode"))
       throw new MissingFieldException(message, MessageType.JOIN_ERROR);
+    String username = message.data().get("username").toString();
     String skinId = message.data().containsKey("skinId")
         ? message.data().get("skinId").toString()
         : "astro";  // Default fallback for backward compatibility
-    User user = new User(message.data().get("username").toString(), skinId);
     String gameCode = message.data().get("gameCode").toString();
     if (!server.getExistingGameCodes().contains(gameCode))
       throw new IncorrectGameCodeException(MessageType.JOIN_ERROR);
+
+    // Check if username is already taken in this lobby
+    GameState targetGameState = server.getGameStateByCode(gameCode);
+    if (targetGameState != null && targetGameState.isUsernameTaken(username)) {
+      throw new UsernameTakenException(MessageType.USERNAME_TAKEN);
+    }
+
+    User user = new User(username, skinId);
     boolean result = server.addWebsocketUser(websocket, user);
     if (!result)
       throw new ClientAlreadyExistsException(MessageType.JOIN_ERROR);
