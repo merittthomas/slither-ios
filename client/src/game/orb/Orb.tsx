@@ -11,9 +11,10 @@ export interface OrbData {
   color: string;
 }
 
-/** An enum representing the two possible orb sizes */
+/** An enum representing the possible orb sizes */
 export enum OrbSize {
   SMALL = "SMALL",
+  MEDIUM = "MEDIUM",
   LARGE = "LARGE",
 }
 
@@ -24,6 +25,18 @@ export enum OrbSize {
  * @param offset the offset at which to render the orb
  * @returns a HTML element rendering of the orb
  */
+/** Get the pixel size for an orb based on its OrbSize */
+function getOrbPixelSize(orbSize: OrbSize): number {
+  switch (orbSize) {
+    case OrbSize.SMALL:
+      return 7.5;
+    case OrbSize.MEDIUM:
+      return 15;
+    case OrbSize.LARGE:
+      return 30;
+  }
+}
+
 export default function Orb({
   orbInfo,
   offset,
@@ -31,14 +44,15 @@ export default function Orb({
   orbInfo: OrbData;
   offset: Position;
 }): JSX.Element {
+  const size = getOrbPixelSize(orbInfo.orbSize);
   return (
     <div
       className="circle"
       style={{
         top: `${orbInfo.position.y + offset.y}px`,
         left: `${orbInfo.position.x + offset.x}px`,
-        height: `${orbInfo.orbSize === OrbSize.SMALL ? 7.5 : 15}px`,
-        width: `${orbInfo.orbSize === OrbSize.SMALL ? 7.5 : 15}px`,
+        height: `${size}px`,
+        width: `${size}px`,
         backgroundColor: `${orbInfo.color}`,
       }}
     ></div>

@@ -111,7 +111,7 @@ export default function Leaderboard({
     <div className="leaderboard">
       <table>
         <tr>
-          <th className="leaderboard-title" colSpan={2}>
+          <th className="leaderboard-title" colSpan={3}>
             Leaderboard
           </th>
         </tr>
@@ -124,13 +124,22 @@ export default function Leaderboard({
           return (
             <tr key={username}>
               <td
+                className="rank-entry"
+                style={{
+                  color: playerColor,
+                  fontWeight: isCurrentPlayer ? "bold" : "normal",
+                }}
+              >
+                {rank}
+              </td>
+              <td
                 className="username-entry"
                 style={{
                   color: playerColor,
                   fontWeight: isCurrentPlayer ? "bold" : "normal",
                 }}
               >
-                {rank}. {username}
+                {username}
               </td>
               <td
                 className="score-entry"
@@ -147,13 +156,22 @@ export default function Leaderboard({
         {currentPlayerEntry && (
           <tr>
             <td
+              className="rank-entry"
+              style={{
+                color: getPlayerColor(currentPlayerEntry[0]),
+                fontWeight: "bold",
+              }}
+            >
+              {currentPlayerRank}
+            </td>
+            <td
               className="username-entry"
               style={{
                 color: getPlayerColor(currentPlayerEntry[0]),
                 fontWeight: "bold",
               }}
             >
-              {currentPlayerRank}. {currentPlayerEntry[0]}
+              {currentPlayerEntry[0]}
             </td>
             <td
               className="score-entry"

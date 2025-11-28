@@ -4,5 +4,5 @@ package com.slitherios.orb;
  * OrbSize enum to denote the size of an orb assigned such value
  */
 public enum OrbSize {
-  SMALL, LARGE
+  SMALL, MEDIUM, LARGE
 }

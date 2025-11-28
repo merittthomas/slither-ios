@@ -42,15 +42,15 @@ public class OrbGenerator {
 
   /**
    * Generates a random OrbSize such that 75% of those generated are SMALL
-   * and rest are LARGE
+   * and rest are MEDIUM
    * @return the pseudo-randomly generated OrbSize
    */
   private OrbSize generateOrbSize() {
-    // 75% -- small; 25% -- large
+    // 75% -- small; 25% -- medium
     Random random = new Random();
     if (random.nextFloat() <= 0.75)
       return OrbSize.SMALL;
-    return OrbSize.LARGE;
+    return OrbSize.MEDIUM;
   }
 
 }

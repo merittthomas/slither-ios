@@ -422,9 +422,9 @@ public class GameState {
   }
 
   /**
-   * Generates death orbs for a snake when it dies: a large orb is created for every fourth snake
-   * body part, and all the clients in the same game are updated with the new orbs so that they can
-   * be rendered.
+   * Generates death orbs for a snake when it dies: a DEATH orb (10 pts, twice the size of LARGE)
+   * is created for every body segment, and all the clients in the same game are updated with the
+   * new orbs so that they can be rendered.
    *
    * @param positions - a List of Positions: the positions of the body parts of the snake that has
    *                  died and needs to be converted ("dissolved") into death orbs.
@@ -433,8 +433,6 @@ public class GameState {
   private void generateDeathOrbs(List<Position> positions, String skinId) {
     String orbColor = OrbColor.getColorForSkin(skinId);
     for (int i=0; i < positions.size(); i++) {
-      if (i % 4 != 0)
-        continue;
       this.orbs.add(new Orb(positions.get(i), OrbSize.LARGE, orbColor));
       this.numDeathOrbs++;
     }
@@ -520,7 +518,8 @@ public class GameState {
         orbCollided = true;
         Integer orbValue = switch(orb.getSize()) {
           case SMALL -> 1;
-          case LARGE -> 5;
+          case MEDIUM -> 5;
+          case LARGE -> 10;
         };
         server.handleUpdateScore(thisUser, this, orbValue);
 
