@@ -177,13 +177,15 @@ export interface leaderboardData {
 
 /**
  * An interface representing an entry on the leaderboard, with
- * a user and their score.
+ * a user, their score, and their skin ID.
  */
 export interface leaderboardEntry {
   /** A client's username */
   username: string;
   /** The respective client's score */
   score: number;
+  /** The respective client's skin ID */
+  skinId: string;
 }
 
 /**

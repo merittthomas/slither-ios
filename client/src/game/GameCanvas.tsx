@@ -32,12 +32,8 @@ let boostActive = false;
 let boostSessionActive = false;
 /** Minimum score required to START boosting */
 const MIN_BOOST_SCORE = 10;
-/** Boost speed multiplier */
-const BOOST_MULTIPLIER = 2;
 /** Track if boost keys are pressed (space, W, up arrow) */
 const boostKeysPressed: { [key: string]: boolean } = {};
-// let lastUpdatedPosition: Position = { x: 0, y: 0 };
-// let lastUpdatedTime: number = new Date().getTime();
 
 /**
  * An interface representing data passed to the HTML element responsible for
@@ -159,7 +155,11 @@ export default function GameCanvas({
       boostActive = false;
     }
 
-    const updatedSnake: SnakeData = moveSnake(gameState.snake, socket, boostActive);
+    // Move snake - when boosting, move twice per frame for 2x speed with same segment spacing
+    let updatedSnake: SnakeData = moveSnake(gameState.snake, socket, boostActive);
+    if (boostActive) {
+      updatedSnake = moveSnake(updatedSnake, socket, boostActive);
+    }
     // constantly update your own snake using moveSnake
     newGameState.snake = updatedSnake;
     setGameState(newGameState);
@@ -202,7 +202,6 @@ export default function GameCanvas({
         <Orb orbInfo={orb} offset={offset} key={ind} />
       ))}
       <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} usernameMap={gameState.otherPlayerUsernames} boostingMap={gameState.otherPlayerBoosting} />
-      snakes
       <Border boundaries={canvasSize} offset={offset} />
     </div>
   );
@@ -269,10 +268,9 @@ export function moveSnake(snake: SnakeData, socket: WebSocket, isBoosting: boole
       }
     }
 
-    // calculate new velocity (apply boost multiplier if boosting)
-    const currentSpeed = isBoosting ? SNAKE_VELOCITY * BOOST_MULTIPLIER : SNAKE_VELOCITY;
-    snake.velocityX = currentSpeed * Math.cos(vel_angle);
-    snake.velocityY = currentSpeed * Math.sin(vel_angle);
+    // calculate new velocity (constant speed - boost is achieved by moving more often)
+    snake.velocityX = SNAKE_VELOCITY * Math.cos(vel_angle);
+    snake.velocityY = SNAKE_VELOCITY * Math.sin(vel_angle);
 
     // find new position of head based on velocity
     const newPosition: Position = {

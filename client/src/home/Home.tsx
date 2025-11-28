@@ -75,6 +75,8 @@ interface HomeProps {
   setGameStarted: Dispatch<SetStateAction<boolean>>;
   /** A function that sets the current leaderboard (set of scores) for the game */
   setScores: Dispatch<SetStateAction<Map<string, number>>>;
+  /** A function that sets the player skins map for the leaderboard */
+  setPlayerSkins: Dispatch<SetStateAction<Map<string, string>>>;
   /** A function that sets the game code for the lobby the client is playing in */
   setGameCode: Dispatch<SetStateAction<string>>;
   /** A metadata representation of the current state of the game */
@@ -104,6 +106,7 @@ interface HomeProps {
 export default function Home({
   setGameStarted,
   setScores,
+  setPlayerSkins,
   setGameCode,
   gameState,
   setGameState,
@@ -151,6 +154,7 @@ export default function Home({
     try {
       registerSocket(
         setScores,
+        setPlayerSkins,
         setGameStarted,
         setErrorText,
         setGameCode,
@@ -187,6 +191,7 @@ export default function Home({
     try {
       registerSocket(
         setScores,
+        setPlayerSkins,
         setGameStarted,
         setErrorText,
         setGameCode,

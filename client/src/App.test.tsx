@@ -7,9 +7,9 @@ test("extractLeaderboardMap function tests", () => {
   leaderboard.set("two", 2);
   leaderboard.set("three", 3);
 
-  const one: leaderboardEntry = { username: "one", score: 1 };
-  const two: leaderboardEntry = { username: "two", score: 2 };
-  const three: leaderboardEntry = { username: "three", score: 3 };
+  const one: leaderboardEntry = { username: "one", score: 1, skinId: "astro" };
+  const two: leaderboardEntry = { username: "two", score: 2, skinId: "astro" };
+  const three: leaderboardEntry = { username: "three", score: 3, skinId: "astro" };
   let array = [one, two, three];
   expect(extractLeaderboardMap(array)).toStrictEqual(leaderboard); //normal
 

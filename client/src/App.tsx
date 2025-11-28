@@ -30,6 +30,7 @@ import {
 export default function App(): JSX.Element {
   const [gameStarted, setGameStarted] = useState(false);
   const [scores, setScores] = useState(new Map<string, number>());
+  const [playerSkins, setPlayerSkins] = useState(new Map<string, string>());
   const [gameCode, setGameCode] = useState("");
   const [username, setUsername] = useState("");
 
@@ -67,6 +68,7 @@ export default function App(): JSX.Element {
           gameState={gameState}
           setGameState={setGameState}
           scores={scores}
+          playerSkins={playerSkins}
           gameCode={gameCode}
           socket={socket}
           username={username}
@@ -75,6 +77,7 @@ export default function App(): JSX.Element {
         <Home
           setGameStarted={setGameStarted}
           setScores={setScores}
+          setPlayerSkins={setPlayerSkins}
           setGameCode={setGameCode}
           gameState={gameState}
           setGameState={setGameState}
@@ -116,6 +119,7 @@ let socket: WebSocket;
  */
 export function registerSocket(
   setScores: Dispatch<SetStateAction<Map<string, number>>>,
+  setPlayerSkins: Dispatch<SetStateAction<Map<string, string>>>,
   setGameStarted: Dispatch<SetStateAction<boolean>>,
   setErrorText: Dispatch<SetStateAction<string>>,
   setGameCode: Dispatch<SetStateAction<string>>,
@@ -254,8 +258,10 @@ export function registerSocket(
       case MessageType.UPDATE_LEADERBOARD: {
         const leaderboardMessage: leaderboardData = message;
         const updatedScores = extractLeaderboardMap(leaderboardMessage.data.leaderboard);
+        const updatedSkins = extractPlayerSkins(leaderboardMessage.data.leaderboard);
         currentScores = updatedScores;
         setScores(updatedScores);
+        setPlayerSkins(updatedSkins);
         break;
       }
 
@@ -349,4 +355,18 @@ export function extractLeaderboardMap(leaderboardData: leaderboardEntry[]) {
     leaderboard.set(entry.username, entry.score);
   });
   return leaderboard;
+}
+
+/**
+ * Extracts and returns a map of users to their skin IDs, from a server
+ * websocket message
+ * @param leaderboardData a list of leaderboard entries, from a server websocket message
+ * @returns a map of users to their skin IDs
+ */
+export function extractPlayerSkins(leaderboardData: leaderboardEntry[]) {
+  const skins: Map<string, string> = new Map<string, string>();
+  leaderboardData.forEach((entry: leaderboardEntry) => {
+    skins.set(entry.username, entry.skinId);
+  });
+  return skins;
 }

@@ -9,20 +9,14 @@
 }
 
 .leaderboard-title {
-  color: aqua;
-}
-
-.username-entry {
   color: white;
 }
 
-.score-entry {
-  color: yellow;
+/* Colors are set dynamically via inline styles based on player skins */
+.username-entry {
+  /* color set by inline style */
 }
 
-/* Current player's entry - bold and yellow */
-.username-entry.current-player,
-.score-entry.current-player {
-  color: yellow;
-  font-weight: bold;
+.score-entry {
+  /* color set by inline style */
 }

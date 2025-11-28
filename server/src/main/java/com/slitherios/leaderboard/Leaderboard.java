@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 public class Leaderboard {
 
   private final Map<User, Integer> userScores;
-  private final int LEADERBOARD_UPDATE_INTERVAL = 1;
+  private final int LEADERBOARD_UPDATE_INTERVAL = 200; // milliseconds (was 1 second)
   private final GameState gameState;
   private final SlitherServer slitherServer;
 
@@ -51,7 +51,7 @@ public class Leaderboard {
         Leaderboard.this.sendLeaderboardScores(message);
         //Leaderboard.this.sendGameCode();
       }
-    }, 1, this.LEADERBOARD_UPDATE_INTERVAL, TimeUnit.SECONDS); 
+    }, 200, this.LEADERBOARD_UPDATE_INTERVAL, TimeUnit.MILLISECONDS); 
   }
 
   /**
@@ -130,7 +130,7 @@ public class Leaderboard {
     LeaderboardEntry[] leaderboard = new LeaderboardEntry[this.userScores.size()];
     int i = 0;
     for (User user : this.userScores.keySet()) {
-      leaderboard[i] = new LeaderboardEntry(user.getUsername(), this.userScores.get(user));
+      leaderboard[i] = new LeaderboardEntry(user.getUsername(), this.userScores.get(user), user.getSkinId());
       i++;
     }
     Arrays.sort(leaderboard, new Comparator<LeaderboardEntry>() {
