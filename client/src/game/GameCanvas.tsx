@@ -20,6 +20,10 @@ const mousePos: Position = { x: 0, y: 0 };
  * middle of the window
  */
 const offset: Position = { x: 0, y: 0 };
+/** Track which keys are currently pressed for keyboard controls */
+const keysPressed: { [key: string]: boolean } = {};
+/** Track if keyboard is active (to prioritize over mouse) */
+let keyboardActive = false;
 // let lastUpdatedPosition: Position = { x: 0, y: 0 };
 // let lastUpdatedTime: number = new Date().getTime();
 
@@ -54,6 +58,21 @@ export default function GameCanvas({
   const onMouseMove = (e: MouseEvent) => {
     mousePos.x = e.pageX;
     mousePos.y = e.pageY;
+    keyboardActive = false; // Switch back to mouse control when mouse moves
+  };
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    const key = e.key.toLowerCase();
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+      keysPressed[key] = true;
+      keyboardActive = true;
+      e.preventDefault(); // Prevent page scrolling with arrow keys
+    }
+  };
+
+  const onKeyUp = (e: KeyboardEvent) => {
+    const key = e.key.toLowerCase();
+    keysPressed[key] = false;
   };
 
   const updatePositions = () => {
@@ -69,11 +88,16 @@ export default function GameCanvas({
     const interval = setInterval(updatePositions, 50);
     // updates mouse position when moved, determines target direction for snake
     window.addEventListener("mousemove", onMouseMove);
+    // keyboard event listeners for WASD and arrow key controls
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
 
     return () => {
       // clean up upon closing
       clearInterval(interval);
       window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
     };
   }, []);
 
@@ -98,7 +122,23 @@ export default function GameCanvas({
 }
 
 /**
- * Changes the given snake's velocity to follow the mouse's position,
+ * Gets the turn rate from keyboard input (left/right keys)
+ * @returns turn rate in radians per frame (negative = left/counterclockwise, positive = right/clockwise), 0 if no turn keys pressed
+ */
+function getKeyboardTurnRate(): number {
+  const TURN_RATE = 0.12; // radians per frame (~6.9 degrees)
+  let turn = 0;
+
+  // Left turn (counterclockwise = negative angle change)
+  if (keysPressed['a'] || keysPressed['arrowleft']) turn -= TURN_RATE;
+  // Right turn (clockwise = positive angle change)
+  if (keysPressed['d'] || keysPressed['arrowright']) turn += TURN_RATE;
+
+  return turn;
+}
+
+/**
+ * Changes the given snake's velocity to follow the mouse's position or keyboard input,
  * and sends the new position to the Slither+ server
  * @param snake A metadata representation of the client's snake
  * @param socket The client's websocket for communication with the Slither+ server
@@ -109,28 +149,36 @@ export function moveSnake(snake: SnakeData, socket: WebSocket): SnakeData {
   const removePosition: Position | undefined = snake.snakeBody.pop();
   const front: Position | undefined = snake.snakeBody.peekFront();
   if (front !== undefined) {
-    const accel_angle: number = Math.atan2(
-      // find the angle of acceleration based on your current position and the mouse position
-      mousePos.y - offset.y - front.y,
-      mousePos.x - offset.x - front.x
-    );
     let vel_angle: number = Math.atan2(snake.velocityY, snake.velocityX);
-    const angle_diff = mod(accel_angle - vel_angle, 2 * Math.PI);
 
-    // Adaptive turning: use smaller increments when close to target to prevent oscillation
-    const MAX_TURN_RATE = 0.15; // radians per frame (~8.6 degrees)
-    const MIN_ANGLE_DIFF = 0.015; // ~0.86 degrees - minimum difference to respond to
+    if (keyboardActive) {
+      // Keyboard mode: directly apply turn rate (continuous rotation while key held)
+      const turnRate = getKeyboardTurnRate();
+      vel_angle += turnRate;
+    } else {
+      // Mouse mode: turn toward mouse position
+      const accel_angle = Math.atan2(
+        mousePos.y - offset.y - front.y,
+        mousePos.x - offset.x - front.x
+      );
 
-    // Normalize angle_diff to be in range [-π, π] for proper distance calculation
-    let normalized_diff = angle_diff;
-    if (normalized_diff > Math.PI) {
-      normalized_diff = normalized_diff - 2 * Math.PI;
-    }
+      const angle_diff = mod(accel_angle - vel_angle, 2 * Math.PI);
 
-    if (Math.abs(normalized_diff) > MIN_ANGLE_DIFF) {
-      // Use adaptive turn rate: full speed for large angles, smaller for fine adjustments
-      const turnAmount = Math.min(Math.abs(normalized_diff) / 2, MAX_TURN_RATE);
-      vel_angle += normalized_diff > 0 ? turnAmount : -turnAmount;
+      // Adaptive turning: use smaller increments when close to target to prevent oscillation
+      const MAX_TURN_RATE = 0.15; // radians per frame (~8.6 degrees)
+      const MIN_ANGLE_DIFF = 0.015; // ~0.86 degrees - minimum difference to respond to
+
+      // Normalize angle_diff to be in range [-π, π] for proper distance calculation
+      let normalized_diff = angle_diff;
+      if (normalized_diff > Math.PI) {
+        normalized_diff = normalized_diff - 2 * Math.PI;
+      }
+
+      if (Math.abs(normalized_diff) > MIN_ANGLE_DIFF) {
+        // Use adaptive turn rate: full speed for large angles, smaller for fine adjustments
+        const turnAmount = Math.min(Math.abs(normalized_diff) / 2, MAX_TURN_RATE);
+        vel_angle += normalized_diff > 0 ? turnAmount : -turnAmount;
+      }
     }
 
     // calculate new velocity
