@@ -52,6 +52,7 @@ export default function App(): JSX.Element {
     otherPlayerSkins: new Map<string, string>(),
     otherPlayerHeads: new Map<string, string>(),
     otherPlayerRotations: new Map<string, number>(),
+    otherPlayerUsernames: new Map<string, string>(),
     orbs: orbSet,
     scores: new Map(),
     gameCode: "abc",
@@ -166,6 +167,7 @@ export function registerSocket(
         const toAdd: Position = updatePositionMessage.data.add;
         const toRemove: Position = updatePositionMessage.data.remove;
         const skinId: string = message.data.skinId || "astro";
+        const username: string = message.data.username || "";
         const newGameState: GameState = { ...gameState };
         console.log(
           "gameState otherbodies size: " + gameState.otherBodies.size
@@ -191,8 +193,9 @@ export function registerSocket(
           }
         }
 
-        // Track the head position for this player (the added position is always the new head)
+        // Track the head position and username for this player
         newGameState.otherPlayerHeads.set(skinId, addKey);
+        newGameState.otherPlayerUsernames.set(skinId, username);
         setGameState(newGameState);
         break;
       }
@@ -223,10 +226,11 @@ export function registerSocket(
           newGameState.otherBodies.delete(posKey);
           newGameState.otherPlayerSkins.delete(posKey);
         });
-        // Remove the head and rotation tracking for this dead player
+        // Remove the head, rotation, and username tracking for this dead player
         if (deadSkinId) {
           newGameState.otherPlayerHeads.delete(deadSkinId);
           newGameState.otherPlayerRotations.delete(deadSkinId);
+          newGameState.otherPlayerUsernames.delete(deadSkinId);
         }
         setGameState(newGameState);
         break;

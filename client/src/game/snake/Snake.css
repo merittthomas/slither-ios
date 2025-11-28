@@ -37,3 +37,19 @@
   border-radius: 50%;
   transition: left 50ms linear, top 50ms linear, transform 50ms linear;
 }
+
+/* Player name tag - pill shaped with black background */
+.player-name-tag {
+  position: absolute;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.2);
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+  z-index: 1001;
+  pointer-events: none;
+  transition: left 50ms linear, top 50ms linear;
+}

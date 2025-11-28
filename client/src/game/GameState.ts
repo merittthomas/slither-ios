@@ -29,6 +29,8 @@ export default interface GameState {
   otherPlayerHeads: Map<string, string>;
   /** A map from skinId to head rotation angle (in degrees) for other players */
   otherPlayerRotations: Map<string, number>;
+  /** A map from skinId to username for other players */
+  otherPlayerUsernames: Map<string, string>;
   /** A metadata representation of all current in-game orbs */
   orbs: Set<OrbData>;
 

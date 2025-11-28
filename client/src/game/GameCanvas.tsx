@@ -90,7 +90,7 @@ export default function GameCanvas({
       {Array.from(gameState.orbs).map((orb: OrbData, ind: number) => (
         <Orb orbInfo={orb} offset={offset} key={ind} />
       ))}
-      <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} />
+      <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} usernameMap={gameState.otherPlayerUsernames} />
       snakes
       <Border boundaries={canvasSize} offset={offset} />
     </div>

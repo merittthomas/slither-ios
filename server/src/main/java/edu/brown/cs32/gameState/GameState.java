@@ -209,6 +209,7 @@ public class GameState {
     data.put("add", toAdd);
     data.put("remove", toRemove);
     data.put("skinId", thisUser.getSkinId());
+    data.put("username", thisUser.getUsername());
     Message message = new Message(MessageType.UPDATE_POSITION, data);
     String jsonResponse = server.serialize(message);
 

@@ -56,6 +56,7 @@ function adjustColorForGradient(hex: string): string {
  * @param skinMap a map from position JSON string to skinId for coloring
  * @param headMap a map from skinId to head position JSON string
  * @param rotationMap a map from skinId to head rotation angle (degrees)
+ * @param usernameMap a map from skinId to username for name tags
  * @returns a rendering of all other snake positions on screen
  */
 export default function OtherSnake({
@@ -64,12 +65,14 @@ export default function OtherSnake({
   skinMap,
   headMap,
   rotationMap,
+  usernameMap,
 }: {
   positions: Set<string>;
   offset: Position;
   skinMap: Map<string, string>;
   headMap: Map<string, string>;
   rotationMap: Map<string, number>;
+  usernameMap: Map<string, string>;
 }): JSX.Element {
   // Create a set of head positions for quick lookup
   const headPositions = new Set(headMap.values());
@@ -84,23 +87,37 @@ export default function OtherSnake({
         const darkerColor = adjustColorForGradient(skin.color);
 
         if (isHead) {
-          // Get rotation for this player's head
+          // Get rotation and username for this player's head
           const rotation = rotationMap.get(skinId) || 0;
-          // Render head as image with rotation (using other-snake-head for smooth transitions)
+          const username = usernameMap.get(skinId) || "";
+          // Render head as image with rotation and name tag (using other-snake-head for smooth transitions)
           return (
-            <img
-              key={index}
-              className="other-snake-head"
-              src={skin.headImage}
-              alt="snake head"
-              style={{
-                left: bodyPart.x + offset.x,
-                top: bodyPart.y + offset.y,
-                transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
-                zIndex: 1000,
-              }}
-            />
+            <div key={index}>
+              {/* Name tag above head */}
+              {username && (
+                <div
+                  className="player-name-tag"
+                  style={{
+                    left: bodyPart.x + offset.x,
+                    top: bodyPart.y + offset.y - 60,
+                  }}
+                >
+                  {username}
+                </div>
+              )}
+              <img
+                className="other-snake-head"
+                src={skin.headImage}
+                alt="snake head"
+                style={{
+                  left: bodyPart.x + offset.x,
+                  top: bodyPart.y + offset.y,
+                  transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                  background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
+                  zIndex: 1000,
+                }}
+              />
+            </div>
           );
         } else {
           // Render body segment (using other-snake for smooth transitions)
