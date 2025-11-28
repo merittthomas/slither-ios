@@ -22,6 +22,10 @@ interface ControlledInputProps {
   placeholder: string;
   /** The class of the input HTML element. */
   className: string;
+  /** Optional flag to convert input to uppercase. */
+  uppercase?: boolean;
+  /** Optional maximum length for the input. */
+  maxLength?: number;
 }
 
 /**
@@ -42,12 +46,14 @@ function ControlledInput({
   onEnter,
   placeholder,
   className,
+  uppercase = false,
+  maxLength,
 }: ControlledInputProps): JSX.Element {
   return (
     <input
       value={value}
       onChange={(ev: React.ChangeEvent<HTMLInputElement>): void =>
-        setValue(ev.target.value)
+        setValue(uppercase ? ev.target.value.toUpperCase() : ev.target.value)
       }
       onKeyDown={(ev: React.KeyboardEvent<HTMLInputElement>): void => {
         if (ev.key === "Enter") {
@@ -56,6 +62,7 @@ function ControlledInput({
       }}
       placeholder={placeholder}
       className={className}
+      maxLength={maxLength}
     ></input>
   );
 }
@@ -103,15 +110,39 @@ export default function Home({
   const [username, setUsername] = useState("");
   const [inputGamecode, setInputGamecode] = useState("");
   const [errorText, setErrorText] = useState("");
+  const [gameCodeErrorText, setGameCodeErrorText] = useState("");
   const [displayHowToPlay, setDisplayHowToPlay] = useState(false);
+
+  // Check for last score from localStorage
+  const lastScore = localStorage.getItem('lastScore');
+  const usernamePrompt = lastScore
+    ? `Last Score: ${lastScore}`
+    : "Enter your username:";
+
+  // validates username to prevent security risks
+  const validateUsername = (name: string): boolean => {
+    if (name.trim().length === 0) {
+      setErrorText("Enter a username");
+      return false;
+    }
+    // Only allow alphanumeric characters, spaces, hyphens, and underscores
+    const validUsernameRegex = /^[a-zA-Z0-9\s_-]+$/;
+    if (!validUsernameRegex.test(name)) {
+      setErrorText("Username can only contain letters, numbers, spaces, hyphens, and underscores!");
+      return false;
+    }
+    return true;
+  };
 
   // registers the client's websocket to handle joining a new game
   const startNewGame = (): void => {
-    if (username.trim().length === 0) {
-      setErrorText("Your username should be non-empty!");
+    if (!validateUsername(username)) {
       return;
     }
     setErrorText("");
+    setGameCodeErrorText("");
+    // Clear the last score when starting a new game
+    localStorage.removeItem('lastScore');
     try {
       registerSocket(
         setScores,
@@ -132,12 +163,19 @@ export default function Home({
 
   // registers the client's websocket to handle joining a game with a code
   const startGameWithCode = (): void => {
-    if (username.trim().length === 0) {
-      //check that name is not empty
-      setErrorText("Your username should be non-empty!");
+    if (!validateUsername(username)) {
+      setGameCodeErrorText("");
+      return;
+    }
+    if (inputGamecode.trim().length === 0) {
+      setErrorText("");
+      setGameCodeErrorText("Enter a game code");
       return;
     }
     setErrorText("");
+    setGameCodeErrorText("");
+    // Clear the last score when starting a new game
+    localStorage.removeItem('lastScore');
     try {
       registerSocket(
         setScores,
@@ -174,70 +212,67 @@ export default function Home({
         </button>
         <h1 className="main-title">
           Slither
-          <span className="title-plus" aria-label="Title: Slither+">
-            +
+          <span className="title-ios" aria-label="Title: Slither.iOS">
+            .iOS
           </span>
         </h1>
         <h2
           className="username-prompt"
           aria-label="Prompt: Enter your username"
         >
-          Enter your username:
+          {usernamePrompt}
         </h2>
-        <ControlledInput
-          value={username}
-          setValue={setUsername}
-          onEnter={() => {
-            if (inputGamecode.length === 0) {
-              startNewGame();
-            } else {
-              startGameWithCode();
-            }
-          }}
-          placeholder="Type your username here:"
-          className="username-input"
-          aria-label="Username input box"
-        />
-        <p className="error-text">{errorText}</p>
-        <div className="container">
-          <div className="row">
-            <div className="col-lg-5 col-md-5 col-sm-12">
-              <button
-                className="btn btn-light new-game-button"
-                aria-label="New Game Button"
-                onClick={startNewGame}
-              >
-                Create a new game
-              </button>
-            </div>
-            <div className="col-lg-2 col-md-2 col-sm-12">
-              <div className="or-text">OR</div>
-            </div>
-            <div className="col-lg-5 col-md-5 col-sm-12">
-              <h4
-                className="join-with-gamecode-text"
-                aria-label="Prompt: Join with a game code"
-              >
-                Join with a game code
-              </h4>
-              <ControlledInput
-                value={inputGamecode}
-                setValue={setInputGamecode}
-                onEnter={startGameWithCode}
-                placeholder="Enter gamecode here:"
-                className="gamecode-input"
-                aria-label="Gamecode input box"
-              />
-              <br />
-              <button
-                className="btn btn-outline-light"
-                aria-label="Join game button"
-                onClick={startGameWithCode}
-              >
-                Join with a game code
-              </button>
-            </div>
-          </div>
+        <div className="username-row">
+          <ControlledInput
+            value={username}
+            setValue={setUsername}
+            onEnter={() => {
+              if (inputGamecode.length === 0) {
+                startNewGame();
+              } else {
+                startGameWithCode();
+              }
+            }}
+            placeholder="Player Name"
+            className="username-input"
+            aria-label="Username input box"
+            maxLength={30}
+          />
+          <button
+            className="btn btn-light new-game-button"
+            aria-label="New Game Button"
+            onClick={startNewGame}
+          >
+            Play
+          </button>
+          <p className="error-text">{errorText}</p>
+        </div>
+        <div className="or-text">OR</div>
+        <h4
+          className="join-with-gamecode-text"
+          aria-label="Prompt: Join with a game code"
+        >
+          Join with a Game Code
+        </h4>
+        <div className="gamecode-row">
+          <ControlledInput
+            value={inputGamecode}
+            setValue={setInputGamecode}
+            onEnter={startGameWithCode}
+            placeholder="XXXXXX"
+            className="gamecode-input"
+            aria-label="Gamecode input box"
+            uppercase={true}
+            maxLength={6}
+          />
+          <button
+            className="btn btn-outline-light join-game-button"
+            aria-label="Join game button"
+            onClick={startGameWithCode}
+          >
+            Join
+          </button>
+          <p className="gamecode-error-text">{gameCodeErrorText}</p>
         </div>
       </div>
     </div>

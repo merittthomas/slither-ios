@@ -117,6 +117,9 @@ export function registerSocket(
   hasGameCode: boolean,
   gameCode: string = ""
 ) {
+  // Local reference to track scores for later use
+  let currentScores = new Map<string, number>();
+
   // running game on localhost
   socket = new WebSocket(AppConfig.PROTOCOL + AppConfig.HOST + AppConfig.PORT);
 
@@ -125,6 +128,8 @@ export function registerSocket(
 
   socket.onopen = () => {
     console.log("client: A new client-side socket was opened!");
+    // Store username for later use when player dies
+    localStorage.setItem('currentUsername', username);
     if (hasGameCode) {
       sendNewClientWithCodeMessage(socket, username, gameCode);
     } else {
@@ -167,6 +172,10 @@ export function registerSocket(
 
       // client's snake died
       case MessageType.YOU_DIED: {
+        // Store the player's score in localStorage before reloading
+        const currentUsername = localStorage.getItem('currentUsername') || '';
+        const playerScore = currentScores.get(currentUsername) || 0;
+        localStorage.setItem('lastScore', playerScore.toString());
         // currently just reloading to force the home screen to open
         // see if we want to do anything else here
         window.location.reload();
@@ -191,7 +200,9 @@ export function registerSocket(
       // updating users' scores
       case MessageType.UPDATE_LEADERBOARD: {
         const leaderboardMessage: leaderboardData = message;
-        setScores(extractLeaderboardMap(leaderboardMessage.data.leaderboard));
+        const updatedScores = extractLeaderboardMap(leaderboardMessage.data.leaderboard);
+        currentScores = updatedScores;
+        setScores(updatedScores);
         break;
       }
 
