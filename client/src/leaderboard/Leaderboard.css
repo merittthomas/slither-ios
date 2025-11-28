@@ -18,3 +18,10 @@
 .score-entry {
   color: yellow;
 }
+
+/* Current player's entry - bold and yellow */
+.username-entry.current-player,
+.score-entry.current-player {
+  color: yellow;
+  font-weight: bold;
+}
