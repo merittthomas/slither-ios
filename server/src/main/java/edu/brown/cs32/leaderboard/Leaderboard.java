@@ -77,7 +77,7 @@ public class Leaderboard {
     if (this.userScores.containsKey(user)) {
       return false;
     }
-    this.userScores.put(user, 20);
+    this.userScores.put(user, 0);
     return true;
   }
 
