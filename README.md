@@ -11,13 +11,15 @@ With the help of websockets, a multithreaded server, and a dynamic client, this 
 
 This full-stack project is composed of a backend (Java) server combined with a frontend (TypeScript/React) client, which in coalition allow for full functionality of the Slither+ game. It uses websockets as the communication protocol between the server and all the clients.
 
-***Repository Link***: [https://github.com/cs0320-f2022/term-project-kkashyap-mpan11-nharbiso-plestz](https://github.com/cs0320-f2022/term-project-kkashyap-mpan11-nharbiso-plestz)
+***Original Repository***: [https://github.com/cs0320-f2022/term-project-kkashyap-mpan11-nharbiso-plestz](https://github.com/cs0320-f2022/term-project-kkashyap-mpan11-nharbiso-plestz)
+
+***Current Repository***: [https://github.com/merittthomas/slither-ios](https://github.com/merittthomas/slither-ios)
 
 Total Estimated Completion Time: 300 Hours
 
-## Team Members & Contributions
+## Original Team Members & Contributions
 
-This project had four contributors: Karan Kashyap (**`kkashyap`**), Mason Pan (**`mpan11`**), Nathan Harbison (**`nharbiso`**), and Paul Lestz (**`plestz`**).
+The original CSCI0320 project had four contributors: Karan Kashyap (**`kkashyap`**), Mason Pan (**`mpan11`**), Nathan Harbison (**`nharbiso`**), and Paul Lestz (**`plestz`**).
 
 ### Contribution details
 * Karan: server and client-side networking (with websockets); server-side gameState manipulation: leaderboard updates, collision checking, position updates, length increasing, collision checking, and snake growth; concurrently updating all clients with the latest game state; home screen; server-side documentation
@@ -25,6 +27,14 @@ This project had four contributors: Karan Kashyap (**`kkashyap`**), Mason Pan (*
 * Nathan: moving the snake with the mouse; panning rendered map portion to display snake at the center; other snake rendering; server-side boundary collision checking; client-side documentation and testing
 * Paul: server-side orb generation and collision checking; client-side orb rendering; client-side game code display; server-side documentation and testing; README
 
+## Recent Enhancements
+
+**Snake Skin System** - Added customizable snake skins with unique colored heads and body gradients:
+- 9 distinct snake skins (Astro, Beta, Charlie, Delta, Echo, Foxtrot, Golf, Hotel, Ion)
+- PNG head images with dynamic rotation based on movement direction
+- HSL-based radial gradient system for 3D-looking body segments
+- Random skin assignment on game start
+- Orb colors updated to match snake skin palette
 
 # Project Details: Structure, Design and Implementation
 
