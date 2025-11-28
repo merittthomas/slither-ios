@@ -111,9 +111,9 @@ export default function Snake({
       const angleRadians = Math.atan2(dy, dx);
       const angleDegrees = angleRadians * (180 / Math.PI);
 
-      // Only update if angle changed by more than 3 degrees
+      // Only update if angle changed by more than 1 degree
       const angleDiff = Math.abs(angleDegrees - lastRotationRef.current);
-      if (angleDiff > 3 && angleDiff < 357) {
+      if (angleDiff > 1 && angleDiff < 359) {
         lastRotationRef.current = angleDegrees;
         headRotation = angleDegrees;
       }

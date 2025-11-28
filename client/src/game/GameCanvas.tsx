@@ -117,11 +117,20 @@ export function moveSnake(snake: SnakeData, socket: WebSocket): SnakeData {
     let vel_angle: number = Math.atan2(snake.velocityY, snake.velocityX);
     const angle_diff = mod(accel_angle - vel_angle, 2 * Math.PI);
 
-    // Only adjust angle if difference is significant (deadzone to prevent jitter)
-    const MIN_ANGLE_DIFF = 0.05; // ~3 degrees in radians
-    if (Math.abs(angle_diff) > MIN_ANGLE_DIFF && Math.abs(angle_diff - 2 * Math.PI) > MIN_ANGLE_DIFF) {
-      // changes the angle of velocity to move towards the mouse position
-      vel_angle += angle_diff < Math.PI ? 0.1 : -0.1;
+    // Adaptive turning: use smaller increments when close to target to prevent oscillation
+    const MAX_TURN_RATE = 0.15; // radians per frame (~8.6 degrees)
+    const MIN_ANGLE_DIFF = 0.015; // ~0.86 degrees - minimum difference to respond to
+
+    // Normalize angle_diff to be in range [-π, π] for proper distance calculation
+    let normalized_diff = angle_diff;
+    if (normalized_diff > Math.PI) {
+      normalized_diff = normalized_diff - 2 * Math.PI;
+    }
+
+    if (Math.abs(normalized_diff) > MIN_ANGLE_DIFF) {
+      // Use adaptive turn rate: full speed for large angles, smaller for fine adjustments
+      const turnAmount = Math.min(Math.abs(normalized_diff) / 2, MAX_TURN_RATE);
+      vel_angle += normalized_diff > 0 ? turnAmount : -turnAmount;
     }
 
     // calculate new velocity
