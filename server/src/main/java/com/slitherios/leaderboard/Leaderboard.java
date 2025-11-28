@@ -82,6 +82,23 @@ public class Leaderboard {
   }
 
   /**
+   * Add a provided User to the leaderboard (userScores) with an initial score.
+   * Used for testing purposes to start with a specific score.
+   *
+   * @param user - A reference to the new User that needs to be added to the leaderboard.
+   * @param initialScore - The initial score to assign to the user.
+   * @return true if the user was added to the leaderboard; if the user already exists
+   * on the leaderboard then false is returned and no changes are made.
+   */
+  public boolean addNewUserWithScore(User user, int initialScore) {
+    if (this.userScores.containsKey(user)) {
+      return false;
+    }
+    this.userScores.put(user, initialScore);
+    return true;
+  }
+
+  /**
    * Removes a user from the leaderboard (userScores).
    *
    * @param user - A reference ot the User to be removed from the leaderboard.

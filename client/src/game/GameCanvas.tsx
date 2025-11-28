@@ -202,7 +202,7 @@ export default function GameCanvas({
         <Orb orbInfo={orb} offset={offset} key={ind} />
       ))}
       <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} usernameMap={gameState.otherPlayerUsernames} boostingMap={gameState.otherPlayerBoosting} scores={scores} />
-      <Border boundaries={canvasSize} offset={offset} score={scores.get(username) || 0} />
+      <Border boundaries={canvasSize} offset={offset} />
     </div>
   );
 }

@@ -33,6 +33,9 @@
   width: 35px;
   z-index: 2;
   /* No border-radius - show full image */
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 /* Other players' snake segments - with CSS transition for smooth interpolation */
@@ -75,6 +78,9 @@
   z-index: 2;
   /* No border-radius - show full image */
   transition: transform 50ms linear;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 /* Player name tag - pill shaped with black background */

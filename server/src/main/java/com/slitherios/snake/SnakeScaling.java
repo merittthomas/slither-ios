@@ -20,10 +20,10 @@ public class SnakeScaling {
     public static final double BASE_POINTS_PER_SEGMENT = 2.0;
 
     // Maximum points required per segment (at high scores)
-    public static final double MAX_POINTS_PER_SEGMENT = 10.0;
+    public static final double MAX_POINTS_PER_SEGMENT = 5.0;
 
     // Score at which max points per segment is reached
-    public static final double DIMINISHING_RETURNS_CAP_SCORE = 500.0;
+    public static final double DIMINISHING_RETURNS_CAP_SCORE = 2000.0;
 
     /**
      * Calculate the scale factor for a snake based on its score.
@@ -59,7 +59,7 @@ public class SnakeScaling {
      * Implements diminishing returns - larger snakes need more points per segment.
      *
      * At score 0: 2 points per segment
-     * At score 500+: 10 points per segment
+     * At score 2000+: 5 points per segment
      * Linear interpolation between
      *
      * @param score The player's current score

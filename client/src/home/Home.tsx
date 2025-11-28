@@ -215,6 +215,42 @@ export default function Home({
     }
   };
 
+  // Start a new game with a specific initial score (for testing)
+  // Uses game code if filled in, otherwise creates a new game
+  const startWithScore = (initialScore: number): void => {
+    if (!validateUsername(username)) {
+      return;
+    }
+    setErrorText("");
+    setGameCodeErrorText("");
+    localStorage.removeItem('lastScore');
+    localStorage.setItem('lastUsername', username);
+    if (inputGamecode.trim().length > 0) {
+      localStorage.setItem('lastGamecode', inputGamecode);
+    }
+    setAppUsername(username);
+    try {
+      const hasGameCode = inputGamecode.trim().length > 0;
+      registerSocket(
+        setScores,
+        setPlayerSkins,
+        setGameStarted,
+        setErrorText,
+        setGameCode,
+        orbSet,
+        gameState,
+        setGameState,
+        username,
+        gameState.snake.skin?.id || "astro",
+        hasGameCode,
+        hasGameCode ? inputGamecode : "",
+        initialScore
+      );
+    } catch (e) {
+      setErrorText("Error: Could not connect to server!");
+    }
+  };
+
   return (
     <div className="main-container">
       <div className="how-to-play-display">
@@ -300,6 +336,17 @@ export default function Home({
             Join
           </button>
           <p className="gamecode-error-text">{gameCodeErrorText}</p>
+        </div>
+        <div className="test-buttons-section">
+          <h5 className="test-buttons-label">Test Mode (Start Big)</h5>
+          <div className="test-buttons-row">
+            <button className="test-button" onClick={() => startWithScore(100)}>100</button>
+            <button className="test-button" onClick={() => startWithScore(500)}>500</button>
+            <button className="test-button" onClick={() => startWithScore(1000)}>1k</button>
+            <button className="test-button" onClick={() => startWithScore(2000)}>2k</button>
+            <button className="test-button" onClick={() => startWithScore(3000)}>3k</button>
+            <button className="test-button" onClick={() => startWithScore(5000)}>5k</button>
+          </div>
         </div>
       </div>
     </div>

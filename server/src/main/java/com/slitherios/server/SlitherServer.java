@@ -386,13 +386,26 @@ public class SlitherServer extends WebSocketServer {
           User newUser = result.user;
           String gameCode = result.gameCode;
 
+          // Get initial score from message (for testing purposes, default 0)
+          int initialScore = 0;
+          if (deserializedMessage.data().containsKey("initialScore")) {
+            Object scoreObj = deserializedMessage.data().get("initialScore");
+            if (scoreObj instanceof Number) {
+              initialScore = ((Number) scoreObj).intValue();
+            }
+          }
+
           if (result.shouldCreateNewGame) {
             // Game code doesn't exist - create a new game with the provided code
             this.gameCodeToGameState.put(gameCode, new GameState(this, gameCode));
             this.gameCodeToGameState.get(gameCode).addUser(newUser);
             this.gameStateToSockets.put(this.gameCodeToGameState.get(gameCode), new HashSet<>());
             Leaderboard leaderboard = new Leaderboard(this.gameCodeToGameState.get(gameCode), this);
-            leaderboard.addNewUser(newUser);
+            if (initialScore > 0) {
+              leaderboard.addNewUserWithScore(newUser, initialScore);
+            } else {
+              leaderboard.addNewUser(newUser);
+            }
             this.userToGameCode.put(newUser, gameCode);
             this.gameCodeToLeaderboard.put(gameCode, leaderboard);
 
@@ -403,7 +416,7 @@ public class SlitherServer extends WebSocketServer {
             GameCode.sendGameCode(gameCode, this.gameCodeToGameState.get(gameCode), this);
 
             GameState gameState = this.gameCodeToGameState.get(gameCode);
-            gameState.createNewSnake(newUser, webSocket, this.gameStateToSockets.get(gameState), this);
+            gameState.createNewSnakeWithScore(newUser, webSocket, this.gameStateToSockets.get(gameState), this, initialScore);
 
             Message message = this.generateMessage("New client added to new game with custom code", MessageType.JOIN_SUCCESS);
             message.data().put("gameCode", gameCode);
@@ -414,14 +427,18 @@ public class SlitherServer extends WebSocketServer {
             if (this.gameCodeToLeaderboard.get(gameCode) == null) {
               throw new GameCodeNoLeaderboardException(MessageType.JOIN_ERROR);
             }
-            this.gameCodeToLeaderboard.get(gameCode).addNewUser(newUser);
+            if (initialScore > 0) {
+              this.gameCodeToLeaderboard.get(gameCode).addNewUserWithScore(newUser, initialScore);
+            } else {
+              this.gameCodeToLeaderboard.get(gameCode).addNewUser(newUser);
+            }
             if (!this.gameCodeToGameState.containsKey(gameCode))
               throw new GameCodeNoGameStateException(MessageType.JOIN_ERROR);
 
             this.addSocketToGameState(gameCode, webSocket);
             this.gameCodeToGameState.get(gameCode).addUser(newUser);
             GameState gameState = this.gameCodeToGameState.get(gameCode);
-            gameState.createNewSnake(newUser, webSocket, this.gameStateToSockets.get(gameState), this);
+            gameState.createNewSnakeWithScore(newUser, webSocket, this.gameStateToSockets.get(gameState), this, initialScore);
 
             GameCode.sendGameCode(gameCode, this.gameCodeToGameState.get(gameCode), this);
 
@@ -440,7 +457,21 @@ public class SlitherServer extends WebSocketServer {
           this.gameCodeToGameState.get(gameCode).addUser(newUser);
           this.gameStateToSockets.put(this.gameCodeToGameState.get(gameCode), new HashSet<>());
           Leaderboard leaderboard = new Leaderboard(this.gameCodeToGameState.get(gameCode), this);
-          leaderboard.addNewUser(newUser);
+
+          // Get initial score from message (for testing purposes, default 0)
+          int initialScore = 0;
+          if (deserializedMessage.data().containsKey("initialScore")) {
+            Object scoreObj = deserializedMessage.data().get("initialScore");
+            if (scoreObj instanceof Number) {
+              initialScore = ((Number) scoreObj).intValue();
+            }
+          }
+
+          if (initialScore > 0) {
+            leaderboard.addNewUserWithScore(newUser, initialScore);
+          } else {
+            leaderboard.addNewUser(newUser);
+          }
           this.userToGameCode.put(newUser, gameCode);
           this.gameCodeToLeaderboard.put(gameCode, leaderboard);
 
@@ -452,7 +483,7 @@ public class SlitherServer extends WebSocketServer {
           GameCode.sendGameCode(gameCode, this.gameCodeToGameState.get(gameCode), this);
 
           GameState gameState = this.gameCodeToGameState.get(gameCode);
-          gameState.createNewSnake(newUser, webSocket, this.gameStateToSockets.get(gameState), this);
+          gameState.createNewSnakeWithScore(newUser, webSocket, this.gameStateToSockets.get(gameState), this, initialScore);
 
           Message message = this.generateMessage("New client added to new game", MessageType.JOIN_SUCCESS);
           message.data().put("gameCode", gameCode);

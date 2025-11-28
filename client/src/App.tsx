@@ -116,6 +116,7 @@ let socket: WebSocket;
  * @param hasGameCode A boolean representing whether or not the client is
  * joining an existing game with a game code
  * @param gameCode The game code entered by the client, if applicable
+ * @param initialScore Optional initial score for testing (0 for normal game)
  */
 export function registerSocket(
   setScores: Dispatch<SetStateAction<Map<string, number>>>,
@@ -129,7 +130,8 @@ export function registerSocket(
   username: string,
   skinId: string,
   hasGameCode: boolean,
-  gameCode: string = ""
+  gameCode: string = "",
+  initialScore: number = 0
 ) {
   // Local reference to track scores for later use
   let currentScores = new Map<string, number>();
@@ -145,9 +147,9 @@ export function registerSocket(
     // Store username for later use when player dies
     localStorage.setItem('currentUsername', username);
     if (hasGameCode) {
-      sendNewClientWithCodeMessage(socket, username, skinId, gameCode);
+      sendNewClientWithCodeMessage(socket, username, skinId, gameCode, initialScore);
     } else {
-      sendNewClientNoCodeMessage(socket, username, skinId);
+      sendNewClientNoCodeMessage(socket, username, skinId, initialScore);
     }
   };
 
@@ -315,8 +317,11 @@ export function registerSocket(
         console.log("decrease own length message");
         const count: number = message.data.count || 0;
         const newGameState: GameState = { ...gameState };
-        // Remove segments from the tail
-        for (let i = 0; i < count; i++) {
+        const currentLength = newGameState.snake.snakeBody.length;
+        const minLength = 10; // Minimum snake length (spawn length)
+        // Only remove segments if we have more than minimum length
+        const canRemove = Math.min(count, currentLength - minLength);
+        for (let i = 0; i < canRemove; i++) {
           newGameState.snake.snakeBody.pop();
         }
         setGameState(newGameState);

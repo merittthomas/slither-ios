@@ -297,14 +297,94 @@ public class GameState {
    * @param server : the server through which to serialize the message to be sent via webSocket
    */
   public void createNewSnake(User thisUser, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server) {
+    createNewSnakeWithScore(thisUser, webSocket, gameStateSockets, server, 0);
+  }
+
+  /**
+   * Creates a new snake for this user with a specific initial score and sends this data to all other users sharing this GameState.
+   * The snake length is calculated based on the initial score using the diminishing returns formula.
+   * @param thisUser : the user for which this new snake is being generated
+   * @param webSocket : the current user's socket through which to send data to the client
+   * @param gameStateSockets : the list of other clients' sockets to receive the creation update of this client's snake
+   * @param server : the server through which to serialize the message to be sent via webSocket
+   * @param initialScore : the initial score to start with (0 for normal game)
+   */
+  public void createNewSnakeWithScore(User thisUser, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server, int initialScore) {
+    // Calculate the snake length based on initialScore using diminishing returns formula
+    int snakeLength = calculateSnakeLengthFromScore(initialScore);
+
+    // Get the spacing between segments based on visual scale
+    // Larger snakes need more spacing between segments to look proportional
+    double scale = SnakeScaling.calculateSnakeScale(initialScore);
+    double segmentSpacing = 5 * scale; // Base spacing is 5, scaled up for larger snakes
+
+    // The client always starts with 10 segments (base spawn length)
+    // We need to send the additional segments beyond 10 to the client itself
+    int baseLength = 10;
     List<Position> newSnake = new ArrayList<>();
-    for (int i=0; i < 10; i++) {
-      Position position = new Position(600, 100 + 5 * i);
+    List<Position> additionalSegmentsForOwn = new ArrayList<>();
+
+    // Position of the 10th segment (where extra segments will stack)
+    double stackPosition = 100 + segmentSpacing * (baseLength - 1);
+
+    for (int i = 0; i < snakeLength; i++) {
+      Position position;
+      if (i < baseLength) {
+        // First 10 segments are spaced normally
+        position = new Position(600, 100 + segmentSpacing * i);
+      } else {
+        // Extra segments all stack at the 10th segment's position
+        // They will spread out as the snake moves
+        position = new Position(600, stackPosition);
+      }
       newSnake.add(position);
       this.userToSnakeDeque.get(thisUser).addLast(position);
       this.positionToUser.put(position, thisUser); // Track position ownership
+
+      // Segments beyond the base 10 need to be sent to the client
+      if (i >= baseLength) {
+        additionalSegmentsForOwn.add(position);
+      }
     }
+
+    // Send all segments to other clients
     this.sendOthersIncreasedLengthBodyParts(webSocket, newSnake, gameStateSockets, server, thisUser.getSkinId());
+
+    // Send additional segments (beyond base 10) to the client itself
+    if (additionalSegmentsForOwn.size() > 0) {
+      this.sendOwnIncreasedLengthBodyParts(webSocket, additionalSegmentsForOwn, server);
+    }
+  }
+
+  /**
+   * Calculate the snake length from a score based on the diminishing returns formula.
+   * Base length is 10 segments (at score 0).
+   * Additional segments are calculated by integrating the points-per-segment curve.
+   * @param score : the score to calculate length from
+   * @return the number of body segments
+   */
+  private int calculateSnakeLengthFromScore(int score) {
+    if (score <= 0) {
+      return 10; // Base snake length
+    }
+
+    // Simulate accumulating score to calculate body length
+    // This mirrors the logic in UpdatePositionHandler for consistency
+    int segments = 10; // Start with base length
+    double accumulated = 0;
+
+    for (int s = 0; s < score; s++) {
+      double pointsPerSegment = SnakeScaling.calculatePointsPerSegment(s);
+      accumulated += 1.0;
+      while (accumulated >= pointsPerSegment) {
+        accumulated -= pointsPerSegment;
+        segments++;
+        // Update pointsPerSegment for new score
+        pointsPerSegment = SnakeScaling.calculatePointsPerSegment(s);
+      }
+    }
+
+    return segments;
   }
 
   /**
@@ -432,8 +512,8 @@ public class GameState {
 
   /**
    * Generates death orbs for a snake when it dies: a DEATH orb (10 pts, twice the size of LARGE)
-   * is created for every body segment, and all the clients in the same game are updated with the
-   * new orbs so that they can be rendered.
+   * is created for visually distinct body segments (not stacked/pending segments), and all the
+   * clients in the same game are updated with the new orbs so that they can be rendered.
    *
    * @param positions - a List of Positions: the positions of the body parts of the snake that has
    *                  died and needs to be converted ("dissolved") into death orbs.
@@ -441,9 +521,28 @@ public class GameState {
    */
   private void generateDeathOrbs(List<Position> positions, String skinId) {
     String orbColor = OrbColor.getColorForSkin(skinId);
-    for (int i=0; i < positions.size(); i++) {
-      this.orbs.add(new Orb(positions.get(i), OrbSize.LARGE, orbColor));
-      this.numDeathOrbs++;
+    // Minimum distance between orbs - segments closer than this are stacked/pending
+    // and should only produce one orb at that location
+    double minOrbDistance = 3.0;
+    Position lastOrbPosition = null;
+
+    for (int i = 0; i < positions.size(); i++) {
+      Position pos = positions.get(i);
+      boolean shouldCreateOrb = true;
+
+      if (lastOrbPosition != null) {
+        double dist = this.distance(pos, lastOrbPosition);
+        if (dist < minOrbDistance) {
+          // Position is too close to last orb - skip it (it's a stacked/pending segment)
+          shouldCreateOrb = false;
+        }
+      }
+
+      if (shouldCreateOrb) {
+        this.orbs.add(new Orb(pos, OrbSize.LARGE, orbColor));
+        this.numDeathOrbs++;
+        lastOrbPosition = pos;
+      }
     }
     this.sendOrbData();
   }

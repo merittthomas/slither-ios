@@ -62,6 +62,19 @@ function hexToHSL(hex: string): [number, number, number] {
 }
 
 /**
+ * Converts hex color to RGB string for use in rgba()
+ * @param hex The hex color code (e.g., "#EA3D3D")
+ * @returns RGB values as comma-separated string (e.g., "234, 61, 61")
+ */
+function hexToRGB(hex: string): string {
+  const cleanHex = hex.replace("#", "");
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
+/**
  * Adjusts a hex color by decreasing brightness and increasing saturation
  * @param hex The hex color code (e.g., "#EA3D3D")
  * @returns HSL color string with adjusted brightness and saturation
@@ -133,8 +146,13 @@ export default function Snake({
   const darkerColor = adjustColorForGradient(skinColor);
 
   // Boost glow effect - creates a pulsing glow around the snake when boosting
+  // Divide glow size by scale to keep it consistent regardless of snake size
+  // Fixed 40% opacity for all snake sizes
+  const glowSize1 = Math.round(15 / scale);
+  const glowSize2 = Math.round(30 / scale);
+  const glowSize3 = Math.round(45 / scale);
   const boostGlow = isBoosting
-    ? `0 0 15px ${skinColor}, 0 0 30px ${skinColor}, 0 0 45px ${skinColor}`
+    ? `0 0 ${glowSize1}px rgba(${hexToRGB(skinColor)}, 0.4), 0 0 ${glowSize2}px rgba(${hexToRGB(skinColor)}, 0.28), 0 0 ${glowSize3}px rgba(${hexToRGB(skinColor)}, 0.2)`
     : "none";
 
   return (

@@ -20,10 +20,11 @@ export default interface Message {
 export interface NewClientNoCodeMessage {
   /** The type (purpose) of the message sent or received */
   type: MessageType.NEW_CLIENT_NO_CODE;
-  /** The data sent with the message - the client's username and skin ID */
+  /** The data sent with the message - the client's username, skin ID, and optional initial score */
   data: {
     username: string;
     skinId: string;
+    initialScore?: number;
   };
 }
 
@@ -35,13 +36,14 @@ export interface NewClientOldCodeMessage {
   /** The type (purpose) of the message sent or received */
   type: MessageType.NEW_CLIENT_WITH_CODE;
   /**
-   * The data sent with the message - the client's username, skin ID, and
-   * specified game code for the lobby to join
+   * The data sent with the message - the client's username, skin ID,
+   * specified game code for the lobby to join, and optional initial score
    */
   data: {
     username: string;
     skinId: string;
     gameCode: string;
+    initialScore?: number;
   };
 }
 
@@ -69,17 +71,20 @@ export interface UpdatePositionMessage {
  * @param socket the client's websocket for communication with the server
  * @param username the client's username
  * @param skinId the client's selected skin ID
+ * @param initialScore optional initial score for testing (0 for normal game)
  */
 export function sendNewClientNoCodeMessage(
   socket: WebSocket,
   username: string,
-  skinId: string
+  skinId: string,
+  initialScore: number = 0
 ): void {
   const message: NewClientNoCodeMessage = {
     type: MessageType.NEW_CLIENT_NO_CODE,
     data: {
       username: username,
       skinId: skinId,
+      initialScore: initialScore,
     },
   };
   socket.send(JSON.stringify(message));
@@ -92,12 +97,14 @@ export function sendNewClientNoCodeMessage(
  * @param username the client's username
  * @param skinId the client's selected skin ID
  * @param gameCode the game code of the lobby to join
+ * @param initialScore optional initial score for testing (0 for normal game)
  */
 export function sendNewClientWithCodeMessage(
   socket: WebSocket,
   username: string,
   skinId: string,
-  gameCode: string
+  gameCode: string,
+  initialScore: number = 0
 ): void {
   const message: NewClientOldCodeMessage = {
     type: MessageType.NEW_CLIENT_WITH_CODE,
@@ -105,6 +112,7 @@ export function sendNewClientWithCodeMessage(
       username: username,
       skinId: skinId,
       gameCode: gameCode,
+      initialScore: initialScore,
     },
   };
   socket.send(JSON.stringify(message));
