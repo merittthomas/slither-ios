@@ -1,4 +1,4 @@
-# Slither.iOS 🐍
+# Slither.iOS 🐍📱
 
 A multiplayer snake game inspired by [slither.io](http://slither.io/), featuring private lobbies, custom snake skins, and real-time gameplay. Built with a Java WebSocket backend and React/TypeScript frontend.
 
