@@ -236,7 +236,7 @@ export default function Home({
             placeholder="Player Name"
             className="username-input"
             aria-label="Username input box"
-            maxLength={30}
+            maxLength={24}
           />
           <button
             className="btn btn-light new-game-button"
