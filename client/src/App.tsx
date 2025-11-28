@@ -277,7 +277,16 @@ export function registerSocket(
 
       // updating the set of orbs for the client's game
       case MessageType.SEND_ORBS: {
-        gameState.orbs = new Set<OrbData>(message.data.orbSet);
+        // Normalize orb positions to 2 decimal places to prevent floating point instability
+        // This ensures React keys remain stable across server updates
+        const normalizedOrbs = (message.data.orbSet as OrbData[]).map((orb: OrbData) => ({
+          ...orb,
+          position: {
+            x: Math.round(orb.position.x * 100) / 100,
+            y: Math.round(orb.position.y * 100) / 100,
+          },
+        }));
+        gameState.orbs = new Set<OrbData>(normalizedOrbs);
         setGameState({ ...gameState });
         break;
       }

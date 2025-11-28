@@ -92,95 +92,114 @@ export default function OtherSnake({
   // Create a set of head positions for quick lookup
   const headPositions = new Set(headMap.values());
 
-  return (
-    <div>
-      {Array.from(positions).map((posString: string, index: number) => {
-        const bodyPart: Position = JSON.parse(posString);
-        const skinId = skinMap.get(posString) || "astro";
-        const skin = getSkinById(skinId);
-        const isHead = headPositions.has(posString);
-        const darkerColor = adjustColorForGradient(skin.color);
-        const lighterColor = lightenColorForBorder(skin.color);
-        const isBoosting = boostingMap.get(skinId) || false;
+  // Group positions by skinId (player) to apply segment skip per-player
+  const positionsBySkin: Map<string, string[]> = new Map();
+  Array.from(positions).forEach((posString: string) => {
+    const skinId = skinMap.get(posString) || "astro";
+    if (!positionsBySkin.has(skinId)) {
+      positionsBySkin.set(skinId, []);
+    }
+    positionsBySkin.get(skinId)!.push(posString);
+  });
 
-        // Boost glow effect
-        const boostGlow = isBoosting
-          ? `0 0 15px ${skin.color}, 0 0 30px ${skin.color}, 0 0 45px ${skin.color}`
-          : "none";
+  // Flatten back to renderable elements with per-player segment skipping
+  const elements: JSX.Element[] = [];
 
-        // Calculate scale based on this player's score
-        const username = usernameMap.get(skinId) || "";
-        const playerScore = scores.get(username) || 0;
-        const scale = calculateSnakeScale(playerScore);
+  positionsBySkin.forEach((playerPositions, skinId) => {
+    const skin = getSkinById(skinId);
+    const username = usernameMap.get(skinId) || "";
+    const playerScore = scores.get(username) || 0;
+    const scale = calculateSnakeScale(playerScore);
+    const isBoosting = boostingMap.get(skinId) || false;
+    const darkerColor = adjustColorForGradient(skin.color);
+    const lighterColor = lightenColorForBorder(skin.color);
 
-        if (isHead) {
-          // Get rotation and username for this player's head
-          const rotation = rotationMap.get(skinId) || 0;
-          const username = usernameMap.get(skinId) || "";
-          // Render head as layered elements: circular background + image on top
-          return (
-            <div key={index}>
-              {/* Name tag above head */}
-              {username && (
-                <div
-                  className="player-name-tag"
-                  style={{
-                    left: bodyPart.x + offset.x,
-                    top: bodyPart.y + offset.y - 60,
-                  }}
-                >
-                  {username}
-                </div>
-              )}
+    // Calculate render interval based on scale (same logic as Snake.tsx)
+    const renderInterval = Math.max(1, Math.round((scale - 1) * 2));
+
+    // Boost glow effect
+    const boostGlow = isBoosting
+      ? `0 0 15px ${skin.color}, 0 0 30px ${skin.color}, 0 0 45px ${skin.color}`
+      : "none";
+
+    playerPositions.forEach((posString: string, index: number) => {
+      const bodyPart: Position = JSON.parse(posString);
+      const isHead = headPositions.has(posString);
+
+      // For body segments (not head), skip based on renderInterval
+      // Keep first segment (index 0, near head) and apply interval to rest
+      if (!isHead && index > 0 && index % renderInterval !== 0) {
+        return; // Skip this segment
+      }
+
+      if (isHead) {
+        // Get rotation for this player's head
+        const rotation = rotationMap.get(skinId) || 0;
+        // Render head as layered elements: circular background + image on top
+        elements.push(
+          <div key={`${skinId}-head`}>
+            {/* Name tag above head */}
+            {username && (
               <div
-                className="other-snake-head-container"
+                className="player-name-tag"
                 style={{
                   left: bodyPart.x + offset.x,
-                  top: bodyPart.y + offset.y,
-                  zIndex: 1000,
-                  transform: `translate(-50%, -50%) scale(${scale})`,
+                  top: bodyPart.y + offset.y - 60,
                 }}
               >
-                {/* Circular gradient background */}
-                <div
-                  className={`other-snake-head-bg ${isBoosting ? "boosting" : ""}`}
-                  style={{
-                    background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
-                    border: `${0.35}px solid ${lighterColor}`,
-                    transform: `rotate(${rotation}deg)`,
-                    boxShadow: boostGlow,
-                  }}
-                />
-                {/* Head image on top - no border-radius */}
-                <img
-                  className={`other-snake-head ${isBoosting ? "boosting" : ""}`}
-                  src={skin.headImage}
-                  alt="snake head"
-                  style={{
-                    transform: `rotate(${rotation}deg)`,
-                  }}
-                />
+                {username}
               </div>
-            </div>
-          );
-        } else {
-          // Render body segment (using other-snake for smooth transitions)
-          return (
+            )}
             <div
-              key={index}
-              className={`other-snake ${isBoosting ? "boosting" : ""}`}
+              className="other-snake-head-container"
               style={{
                 left: bodyPart.x + offset.x,
                 top: bodyPart.y + offset.y,
-                background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
-                border: `${0.35}px solid ${lighterColor}`,
-                boxShadow: boostGlow,
+                zIndex: 1000,
                 transform: `translate(-50%, -50%) scale(${scale})`,
               }}
-            ></div>
-          );
-        }
-      })}
-    </div>
-  );
+            >
+              {/* Circular gradient background */}
+              <div
+                className={`other-snake-head-bg ${isBoosting ? "boosting" : ""}`}
+                style={{
+                  background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
+                  border: `${0.35}px solid ${lighterColor}`,
+                  transform: `rotate(${rotation}deg)`,
+                  boxShadow: boostGlow,
+                }}
+              />
+              {/* Head image on top - no border-radius */}
+              <img
+                className={`other-snake-head ${isBoosting ? "boosting" : ""}`}
+                src={skin.headImage}
+                alt="snake head"
+                style={{
+                  transform: `rotate(${rotation}deg)`,
+                }}
+              />
+            </div>
+          </div>
+        );
+      } else {
+        // Render body segment
+        elements.push(
+          <div
+            key={`${skinId}-${index}`}
+            className={`other-snake ${isBoosting ? "boosting" : ""}`}
+            style={{
+              left: bodyPart.x + offset.x,
+              top: bodyPart.y + offset.y,
+              background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
+              border: `${0.35}px solid ${lighterColor}`,
+              boxShadow: boostGlow,
+              transform: `translate(-50%, -50%) scale(${scale})`,
+            }}
+          ></div>
+        );
+      }
+    });
+  });
+
+  return <div>{elements}</div>;
 }

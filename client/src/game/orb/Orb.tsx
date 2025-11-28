@@ -78,12 +78,17 @@ function lightenColorForBorder(hex: string): string {
 function getOrbPixelSize(orbSize: OrbSize): number {
   switch (orbSize) {
     case OrbSize.SMALL:
-      return 7.5;
+      return 10; // Increased from 7.5 for better visibility when zoomed out
     case OrbSize.MEDIUM:
-      return 15;
+      return 18; // Increased from 15
     case OrbSize.LARGE:
-      return 30;
+      return 32; // Increased from 30
   }
+}
+
+interface OrbProps {
+  orbInfo: OrbData;
+  offset: Position;
 }
 
 /**
@@ -93,13 +98,7 @@ function getOrbPixelSize(orbSize: OrbSize): number {
  * @param offset the offset at which to render the orb
  * @returns a HTML element rendering of the orb
  */
-export default function Orb({
-  orbInfo,
-  offset,
-}: {
-  orbInfo: OrbData;
-  offset: Position;
-}): JSX.Element {
+export default function Orb({ orbInfo, offset }: OrbProps): JSX.Element {
   const size = getOrbPixelSize(orbInfo.orbSize);
   const darkerColor = adjustColorForGradient(orbInfo.color);
   const borderColor = lightenColorForBorder(orbInfo.color);
@@ -114,7 +113,8 @@ export default function Orb({
         width: `${size}px`,
         background: `radial-gradient(circle at center, ${orbInfo.color}, ${darkerColor})`,
         border: `0.35px solid ${borderColor}`,
+        transform: 'translate(-50%, -50%)',
       }}
-    ></div>
+    />
   );
 }

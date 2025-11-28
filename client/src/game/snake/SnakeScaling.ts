@@ -26,3 +26,22 @@ export function calculateSnakeScale(score: number): number {
   );
   return size / BASE_SNAKE_SIZE;
 }
+
+// Camera zoom constants
+export const MIN_CAMERA_ZOOM = 0.5; // Maximum zoom-out (at max snake scale)
+export const MAX_CAMERA_ZOOM = 1.0; // No zoom (at base snake size)
+
+/**
+ * Calculate the camera zoom level based on snake scale.
+ * Larger snakes get a more zoomed-out view to see more of the game world.
+ *
+ * @param snakeScale The current snake scale (1.0 to MAX_SNAKE_SCALE)
+ * @returns Camera zoom factor from MAX_CAMERA_ZOOM (1.0) to MIN_CAMERA_ZOOM (0.5)
+ */
+export function calculateCameraZoom(snakeScale: number): number {
+  // Inverse relationship: larger snake = more zoom out
+  const zoomRange = MAX_CAMERA_ZOOM - MIN_CAMERA_ZOOM;
+  const scaleRange = MAX_SNAKE_SCALE - 1.0;
+  const normalizedScale = (snakeScale - 1.0) / scaleRange;
+  return MAX_CAMERA_ZOOM - normalizedScale * zoomRange;
+}

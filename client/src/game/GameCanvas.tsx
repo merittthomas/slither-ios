@@ -5,6 +5,7 @@ import Snake, { SnakeData, SNAKE_VELOCITY } from "./snake/Snake";
 import Orb, { OrbData } from "./orb/Orb";
 import Border from "./boundary/Boundary";
 import OtherSnake from "./snake/OtherSnake";
+import { calculateSnakeScale, calculateCameraZoom } from "./snake/SnakeScaling";
 
 import { sendUpdatePositionWithBoostMessage } from "../message/message";
 
@@ -34,6 +35,12 @@ let boostSessionActive = false;
 const MIN_BOOST_SCORE = 10;
 /** Track if boost keys are pressed (space, W, up arrow) */
 const boostKeysPressed: { [key: string]: boolean } = {};
+/** Current camera zoom level (updated by component, used by moveSnake) */
+let currentCameraZoom = 1.0;
+/** Smoothed camera zoom level for rendering (interpolates toward target) */
+let smoothedCameraZoom = 1.0;
+/** Zoom smoothing factor (lower = smoother but slower, higher = more responsive) */
+const ZOOM_SMOOTHING = 0.08;
 
 /**
  * An interface representing data passed to the HTML element responsible for
@@ -188,18 +195,47 @@ export default function GameCanvas({
     };
   }, []);
 
+  // Calculate target camera zoom based on snake scale
+  const playerScore = scores.get(username) || 0;
+  const snakeScale = calculateSnakeScale(playerScore);
+  const targetZoom = calculateCameraZoom(snakeScale);
+
+  // Smoothly interpolate toward target zoom to prevent jitter when eating orbs rapidly
+  smoothedCameraZoom += (targetZoom - smoothedCameraZoom) * ZOOM_SMOOTHING;
+  // Round to 3 decimal places to prevent micro-fluctuations that cause flickering
+  const cameraZoom = Math.round(smoothedCameraZoom * 1000) / 1000;
+
+  // Update global zoom for moveSnake to use in mouse calculations
+  currentCameraZoom = cameraZoom;
+
   // calculate offset to center snake on screen and place other objects relative to snake
   const front: Position | undefined = gameState.snake.snakeBody.peekFront();
   if (front !== undefined) {
-    offset.x = window.innerWidth / 2 - front.x;
-    offset.y = window.innerHeight / 2 - front.y;
+    offset.x = window.innerWidth / 2 / cameraZoom - front.x;
+    offset.y = window.innerHeight / 2 / cameraZoom - front.y;
   }
 
+  // Container needs to be larger when zoomed out to fill the screen
+  const containerWidth = window.innerWidth / cameraZoom;
+  const containerHeight = window.innerHeight / cameraZoom;
+
   return (
-    <div>
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: containerWidth,
+        height: containerHeight,
+        transform: `scale(${cameraZoom})`,
+        transformOrigin: '0 0',
+        willChange: 'transform',
+        overflow: 'visible',
+      }}
+    >
       <Snake snake={gameState.snake} offset={offset} isBoosting={boostActive} score={scores.get(username) || 0} />
-      {Array.from(gameState.orbs).map((orb: OrbData, ind: number) => (
-        <Orb orbInfo={orb} offset={offset} key={ind} />
+      {Array.from(gameState.orbs).map((orb: OrbData) => (
+        <Orb orbInfo={orb} offset={offset} key={`${Math.round(orb.position.x * 100)},${Math.round(orb.position.y * 100)}`} />
       ))}
       <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} usernameMap={gameState.otherPlayerUsernames} boostingMap={gameState.otherPlayerBoosting} scores={scores} />
       <Border boundaries={canvasSize} offset={offset} />
@@ -244,9 +280,12 @@ export function moveSnake(snake: SnakeData, socket: WebSocket, isBoosting: boole
       vel_angle += turnRate;
     } else {
       // Mouse mode: turn toward mouse position
+      // Mouse position must be scaled by camera zoom to convert from screen to world coordinates
+      const scaledMouseX = mousePos.x / currentCameraZoom;
+      const scaledMouseY = mousePos.y / currentCameraZoom;
       const accel_angle = Math.atan2(
-        mousePos.y - offset.y - front.y,
-        mousePos.x - offset.x - front.x
+        scaledMouseY - offset.y - front.y,
+        scaledMouseX - offset.x - front.x
       );
 
       const angle_diff = mod(accel_angle - vel_angle, 2 * Math.PI);
