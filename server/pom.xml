@@ -4,8 +4,8 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
-    <artifactId>moshi</artifactId>
+    <groupId>com.slitherios</groupId>
+    <artifactId>slither-server</artifactId>
     <version>1.0-SNAPSHOT</version>
     <build>
         <plugins>
@@ -95,7 +95,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.4.0</version>
                 <configuration>
-                    <mainClass>edu.brown.cs32.main.Main</mainClass>
+                    <mainClass>com.slitherios.main.Main</mainClass>
                     <arguments/>
                 </configuration>
                 <executions>
