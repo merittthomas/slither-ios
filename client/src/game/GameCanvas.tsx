@@ -116,8 +116,13 @@ export function moveSnake(snake: SnakeData, socket: WebSocket): SnakeData {
     );
     let vel_angle: number = Math.atan2(snake.velocityY, snake.velocityX);
     const angle_diff = mod(accel_angle - vel_angle, 2 * Math.PI);
-    // changes the angle of velocity to move towards the mouse position
-    vel_angle += angle_diff < Math.PI ? 0.1 : -0.1;
+
+    // Only adjust angle if difference is significant (deadzone to prevent jitter)
+    const MIN_ANGLE_DIFF = 0.05; // ~3 degrees in radians
+    if (Math.abs(angle_diff) > MIN_ANGLE_DIFF && Math.abs(angle_diff - 2 * Math.PI) > MIN_ANGLE_DIFF) {
+      // changes the angle of velocity to move towards the mouse position
+      vel_angle += angle_diff < Math.PI ? 0.1 : -0.1;
+    }
 
     // calculate new velocity
     snake.velocityX = SNAKE_VELOCITY * Math.cos(vel_angle);

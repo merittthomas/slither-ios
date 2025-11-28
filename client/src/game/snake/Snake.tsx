@@ -1,4 +1,5 @@
 import Denque from "denque";
+import { useRef } from "react";
 import "./Snake.css";
 import { Position } from "../GameState";
 import { SnakeSkin } from "./SnakeSkins";
@@ -20,19 +21,6 @@ export interface SnakeData {
 
 /** The constant velocity at which a snake moves */
 export const SNAKE_VELOCITY = 8;
-
-/**
- * Calculates the rotation angle for the snake head based on velocity
- * @param velocityX horizontal velocity
- * @param velocityY vertical velocity
- * @returns rotation angle in degrees
- */
-function calculateHeadRotation(velocityX: number, velocityY: number): number {
-  // Calculate angle in radians, then convert to degrees
-  const angleRadians = Math.atan2(velocityY, velocityX);
-  const angleDegrees = angleRadians * (180 / Math.PI);
-  return angleDegrees;
-}
 
 /**
  * Converts hex color to HSL
@@ -84,8 +72,8 @@ function adjustColorForGradient(hex: string): string {
   const isGrey = s < 10;
   const newS = isGrey ? s : Math.min(100, s + 25);
 
-  // Decrease brightness by 10%
-  const newL = Math.max(0, l - 10);
+  // Decrease brightness by 15%
+  const newL = Math.max(0, l - 15);
 
   return `hsl(${h}, ${newS}%, ${newL}%)`;
 }
@@ -105,7 +93,32 @@ export default function Snake({
   offset: Position;
 }): JSX.Element {
   const bodyArray = snake.snakeBody.toArray();
-  const headRotation = calculateHeadRotation(snake.velocityX, snake.velocityY);
+  const lastRotationRef = useRef<number>(0);
+
+  // Calculate rotation based on actual body positions
+  let headRotation = lastRotationRef.current;
+
+  if (bodyArray.length >= 2) {
+    const head = bodyArray[0];
+    const neck = bodyArray[1];
+
+    const dx = head.x - neck.x;
+    const dy = head.y - neck.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Only update rotation if moving significantly
+    if (distance > 2) {
+      const angleRadians = Math.atan2(dy, dx);
+      const angleDegrees = angleRadians * (180 / Math.PI);
+
+      // Only update if angle changed by more than 3 degrees
+      const angleDiff = Math.abs(angleDegrees - lastRotationRef.current);
+      if (angleDiff > 3 && angleDiff < 357) {
+        lastRotationRef.current = angleDegrees;
+        headRotation = angleDegrees;
+      }
+    }
+  }
 
   // Get skin color, default to white if no skin is set
   const skinColor = snake.skin?.color || "#FFFFFF";
