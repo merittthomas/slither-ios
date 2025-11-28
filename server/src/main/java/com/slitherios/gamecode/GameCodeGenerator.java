@@ -9,13 +9,13 @@ import java.util.Set;
 public class GameCodeGenerator {
 
   /**
-   * Randomly generates a 6-uppercase-letter game code
-   * @return a 6-uppercase-letter game code
+   * Randomly generates a 5-uppercase-letter game code
+   * @return a 5-uppercase-letter game code
    */
   private String createGameCode() {
     Random random = new Random();
     String gameCode = "";
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 5; i++)
       gameCode += (char) (random.nextInt(65, 91));
     return gameCode;
   }

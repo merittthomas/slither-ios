@@ -113,8 +113,9 @@ export default function Home({
   orbSet,
   setAppUsername,
 }: HomeProps): JSX.Element {
-  const [username, setUsername] = useState("");
-  const [inputGamecode, setInputGamecode] = useState("");
+  // Initialize from localStorage to remember last entered values
+  const [username, setUsername] = useState(() => localStorage.getItem('lastUsername') || "");
+  const [inputGamecode, setInputGamecode] = useState(() => localStorage.getItem('lastGamecode') || "");
   const [errorText, setErrorText] = useState("");
   const [gameCodeErrorText, setGameCodeErrorText] = useState("");
   const [displayHowToPlay, setDisplayHowToPlay] = useState(false);
@@ -149,6 +150,8 @@ export default function Home({
     setGameCodeErrorText("");
     // Clear the last score when starting a new game
     localStorage.removeItem('lastScore');
+    // Save username for quick rejoin
+    localStorage.setItem('lastUsername', username);
     // Set the username at the App level for boost score lookup
     setAppUsername(username);
     try {
@@ -186,6 +189,9 @@ export default function Home({
     setGameCodeErrorText("");
     // Clear the last score when starting a new game
     localStorage.removeItem('lastScore');
+    // Save username and game code for quick rejoin
+    localStorage.setItem('lastUsername', username);
+    localStorage.setItem('lastGamecode', inputGamecode);
     // Set the username at the App level for boost score lookup
     setAppUsername(username);
     try {
@@ -224,11 +230,18 @@ export default function Home({
         >
           How to play?
         </button>
-        <h1 className="main-title">
-          Slither
-          <span className="title-ios" aria-label="Title: Slither.iOS">
-            .iOS
-          </span>
+        <h1 className="main-title" aria-label="Title: Slither.iOS">
+          <span className="wave-letter" style={{ animationDelay: '0s' }}>S</span>
+          <span className="wave-letter" style={{ animationDelay: '0.1s' }}>l</span>
+          <span className="wave-letter" style={{ animationDelay: '0.2s' }}>i</span>
+          <span className="wave-letter" style={{ animationDelay: '0.3s' }}>t</span>
+          <span className="wave-letter" style={{ animationDelay: '0.4s' }}>h</span>
+          <span className="wave-letter" style={{ animationDelay: '0.5s' }}>e</span>
+          <span className="wave-letter" style={{ animationDelay: '0.6s' }}>r</span>
+          <span className="title-ios" style={{ animationDelay: '0.7s' }}>.</span>
+          <span className="title-ios" style={{ animationDelay: '0.8s' }}>i</span>
+          <span className="title-ios" style={{ animationDelay: '0.9s' }}>O</span>
+          <span className="title-ios" style={{ animationDelay: '1.0s' }}>S</span>
         </h1>
         <h2
           className="username-prompt"
@@ -273,11 +286,11 @@ export default function Home({
             value={inputGamecode}
             setValue={setInputGamecode}
             onEnter={startGameWithCode}
-            placeholder="XXXXXX"
+            placeholder="XXXXX"
             className="gamecode-input"
             aria-label="Gamecode input box"
             uppercase={true}
-            maxLength={6}
+            maxLength={5}
           />
           <button
             className="btn btn-outline-light join-game-button"

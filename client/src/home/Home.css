@@ -17,7 +17,7 @@
   position: fixed;
   text-align: center;
   font-family: monospace;
-  padding: 20% 20% 5%;
+  padding: 10% 5% 10% 5%;
 }
 
 .how-to-play-button {
@@ -41,15 +41,80 @@
 }
 
 .main-title {
-  color: #7CFC00;
+  color: #FFFFFF;
   font-size: 5rem;
-  text-shadow: 0 0 10px #7CFC00, 0 0 20px #7CFC00, 0 0 30px #7CFC00;
+  font-weight: bold;
   margin-bottom: 40px;
 }
 
+.wave-letter {
+  display: inline-block;
+  animation: wave-float 2s ease-in-out infinite;
+}
+
+@keyframes wave-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
 .title-ios {
-  color: #FFA500;
-  text-shadow: 0 0 10px #FFA500, 0 0 20px #FFA500, 0 0 30px #FFA500;
+  display: inline-block;
+  color: hsl(var(--hue-start, 0), 100%, 50%);
+  animation: hue-cycle 3s linear infinite, wave-float 2s ease-in-out infinite;
+}
+
+.title-ios:nth-of-type(1) { --hue-start: 0; }
+.title-ios:nth-of-type(2) { --hue-start: 30; }
+.title-ios:nth-of-type(3) { --hue-start: 60; }
+.title-ios:nth-of-type(4) { --hue-start: 90; }
+
+@keyframes hue-cycle {
+  0% {
+    color: hsl(calc(var(--hue-start, 0) + 0), 100%, 50%);
+    text-shadow: 0 0 10px hsla(calc(var(--hue-start, 0) + 0), 100%, 50%, 0.4),
+                 0 0 20px hsla(calc(var(--hue-start, 0) + 0), 100%, 50%, 0.4),
+                 0 0 30px hsla(calc(var(--hue-start, 0) + 0), 100%, 50%, 0.4);
+  }
+  16.67% {
+    color: hsl(calc(var(--hue-start, 0) + 60), 100%, 50%);
+    text-shadow: 0 0 10px hsla(calc(var(--hue-start, 0) + 60), 100%, 50%, 0.4),
+                 0 0 20px hsla(calc(var(--hue-start, 0) + 60), 100%, 50%, 0.4),
+                 0 0 30px hsla(calc(var(--hue-start, 0) + 60), 100%, 50%, 0.4);
+  }
+  33.33% {
+    color: hsl(calc(var(--hue-start, 0) + 120), 100%, 50%);
+    text-shadow: 0 0 10px hsla(calc(var(--hue-start, 0) + 120), 100%, 50%, 0.4),
+                 0 0 20px hsla(calc(var(--hue-start, 0) + 120), 100%, 50%, 0.4),
+                 0 0 30px hsla(calc(var(--hue-start, 0) + 120), 100%, 50%, 0.4);
+  }
+  50% {
+    color: hsl(calc(var(--hue-start, 0) + 180), 100%, 50%);
+    text-shadow: 0 0 10px hsla(calc(var(--hue-start, 0) + 180), 100%, 50%, 0.4),
+                 0 0 20px hsla(calc(var(--hue-start, 0) + 180), 100%, 50%, 0.4),
+                 0 0 30px hsla(calc(var(--hue-start, 0) + 180), 100%, 50%, 0.4);
+  }
+  66.67% {
+    color: hsl(calc(var(--hue-start, 0) + 240), 100%, 50%);
+    text-shadow: 0 0 10px hsla(calc(var(--hue-start, 0) + 240), 100%, 50%, 0.4),
+                 0 0 20px hsla(calc(var(--hue-start, 0) + 240), 100%, 50%, 0.4),
+                 0 0 30px hsla(calc(var(--hue-start, 0) + 240), 100%, 50%, 0.4);
+  }
+  83.33% {
+    color: hsl(calc(var(--hue-start, 0) + 300), 100%, 50%);
+    text-shadow: 0 0 10px hsla(calc(var(--hue-start, 0) + 300), 100%, 50%, 0.4),
+                 0 0 20px hsla(calc(var(--hue-start, 0) + 300), 100%, 50%, 0.4),
+                 0 0 30px hsla(calc(var(--hue-start, 0) + 300), 100%, 50%, 0.4);
+  }
+  100% {
+    color: hsl(calc(var(--hue-start, 0) + 360), 100%, 50%);
+    text-shadow: 0 0 10px hsla(calc(var(--hue-start, 0) + 360), 100%, 50%, 0.4),
+                 0 0 20px hsla(calc(var(--hue-start, 0) + 360), 100%, 50%, 0.4),
+                 0 0 30px hsla(calc(var(--hue-start, 0) + 360), 100%, 50%, 0.4);
+  }
 }
 
 .username-prompt {
@@ -133,16 +198,15 @@
   margin-top: 80px;
   margin-bottom: 80px;
   color: #87CEEB;
-  font-style: italic;
   font-size: 2.4rem;
   font-weight: bold;
 }
 
 .join-with-gamecode-text {
-  font-size: 1.1rem;
   color: #E0E0E0;
-  font-weight: 300;
+  margin: 2%;
   margin-bottom: 20px;
+  font-weight: 300;
 }
 
 .gamecode-row {
