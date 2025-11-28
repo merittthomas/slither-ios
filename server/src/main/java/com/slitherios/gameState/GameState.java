@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import org.java_websocket.WebSocket;
 
 /**
@@ -42,6 +43,7 @@ public class GameState {
   private final int SNAKE_CIRCLE_RADIUS = 35; // radius of each body part of the snakes
   private final Map<User, Double> userOrbSegmentAccumulator = new ConcurrentHashMap<>(); // tracks accumulated points toward next body segment
   private static final int POINTS_PER_SEGMENT = 2; // points required to gain one body segment (1 segment per 2 points)
+  private final Map<User, ReentrantLock> userLocks = new ConcurrentHashMap<>(); // per-user locks for thread safety
 
   /**
    * GameState constructor to initialize all necessary variables, including
@@ -64,8 +66,8 @@ public class GameState {
     ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(1);
     exec.scheduleAtFixedRate(new Runnable() {
       public void run() {
-        // code to execute repeatedly
-        System.out.println("Try to generate orbs");
+        // Reduced logging for performance - uncomment for debugging
+        // System.out.println("Try to generate orbs");
         GameState.this.generateOrb();
         GameState.this.sendOrbData();
       }
@@ -80,6 +82,16 @@ public class GameState {
     this.userToOwnPositions.put(user, new HashSet<>());
     this.userToOthersPositions.put(user, new HashSet<>());
     this.userToSnakeDeque.put(user, new LinkedList<>());
+    this.userLocks.put(user, new ReentrantLock());
+  }
+
+  /**
+   * Gets the lock for a specific user for thread-safe position updates
+   * @param user : the user whose lock to retrieve
+   * @return the ReentrantLock for the user
+   */
+  public ReentrantLock getUserLock(User user) {
+    return this.userLocks.computeIfAbsent(user, k -> new ReentrantLock());
   }
 
   /**
@@ -118,26 +130,34 @@ public class GameState {
   }
 
   /**
-   * Updates the specified user's position based on its current position
+   * Updates the specified user's position based on its current position.
+   * Server-authoritative: uses server's actual tail position, not client's expected.
    * @param thisUser : the user whose position is to change
    * @param toAdd : the position to add to the front of this user's snake
-   * @param toRemove : the position to remove from the back of this user's snake
-   * @throws InvalidRemoveCoordinateException if the coordinate attempting to be removed
-   * is not the last in the Deque
+   * @param toRemove : the position the client expects to remove (used for logging only)
+   * @return the actual tail position that was removed, or null if snake doesn't exist
    */
-  public void updateOwnPositions(User thisUser, Position toAdd, Position toRemove) throws InvalidRemoveCoordinateException {
+  public Position updateOwnPositions(User thisUser, Position toAdd, Position toRemove) {
     if (!this.userToOwnPositions.containsKey((thisUser)))
       this.userToOwnPositions.put(thisUser, new HashSet<>());
-    this.userToOwnPositions.get(thisUser).add(toAdd);
-    this.userToOwnPositions.get(thisUser).remove(toRemove);
 
-    this.userToSnakeDeque.get(thisUser).addFirst(toAdd);
-    if (!this.userToSnakeDeque.get(thisUser).peekLast().equals(toRemove)) {
-      System.out.println("To remove error");
-      System.out.println(this.userToSnakeDeque.get(thisUser));
-      throw new InvalidRemoveCoordinateException(MessageType.ERROR);
+    Deque<Position> snakeDeque = this.userToSnakeDeque.get(thisUser);
+    if (snakeDeque == null || snakeDeque.isEmpty()) {
+      return null; // Snake doesn't exist yet
     }
-    this.userToSnakeDeque.get(thisUser).removeLast();
+
+    // Add the new head position
+    this.userToOwnPositions.get(thisUser).add(toAdd);
+    snakeDeque.addFirst(toAdd);
+
+    // Server-authoritative: remove from server's actual tail position, not client's expected
+    // This handles cases where boost has removed segments the client doesn't know about yet
+    Position actualTail = snakeDeque.peekLast();
+    if (actualTail != null) {
+      snakeDeque.removeLast();
+      this.userToOwnPositions.get(thisUser).remove(actualTail);
+    }
+    return actualTail;
   }
 
   /**
@@ -436,7 +456,8 @@ public class GameState {
    * @param server - a SlitherServer object: an instance of the server that is currently running.
    */
   public void collisionCheck(User thisUser, Position latestHeadPosition, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server) {
-    System.out.println("Run collision check");
+    // Reduced logging for performance - uncomment for debugging
+    // System.out.println("Run collision check");
     Set<Position> otherBodies = this.userToOthersPositions.get(thisUser);
     Set<Orb> allOrbs = new HashSet<>(this.orbs);
 
@@ -512,6 +533,9 @@ public class GameState {
         for (int i = 0; i < segmentsToAdd; i++) {
           Position newPosition = this.getNewBodyPartPosition(thisUser);
           newBodyParts.add(newPosition);
+          // Also add to server's snake deque to keep server's length accurate
+          this.userToSnakeDeque.get(thisUser).addLast(newPosition);
+          this.userToOwnPositions.get(thisUser).add(newPosition);
         }
         segmentAccum -= segmentsToAdd;
         userOrbSegmentAccumulator.put(thisUser, segmentAccum);

@@ -1,6 +1,5 @@
 package com.slitherios.actionHandlers;
 
-import com.slitherios.exceptions.InvalidRemoveCoordinateException;
 import com.slitherios.exceptions.MissingFieldException;
 import com.slitherios.gameState.GameState;
 import com.slitherios.leaderboard.Leaderboard;
@@ -12,6 +11,7 @@ import com.slitherios.user.User;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import org.java_websocket.WebSocket;
 
 /**
@@ -47,9 +47,8 @@ public class UpdatePositionHandler {
    * @param server : the server through which GameState updates are sent live
    * to all users for synchronicity
    * @throws MissingFieldException if both addData and removeData messages do not each contain an 'x' and 'y' field
-   * @throws InvalidRemoveCoordinateException (via updateOwnPositions method call) if the last body part of the snake (which is being attempted to be removed) is not actually the last body part
    */
-  public void handlePositionUpdate(User thisUser, Message message, GameState gameState, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server) throws MissingFieldException, InvalidRemoveCoordinateException {
+  public void handlePositionUpdate(User thisUser, Message message, GameState gameState, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server) throws MissingFieldException {
     if (!(message.data().containsKey("add") && message.data().containsKey("remove")))
       throw new MissingFieldException(message, MessageType.ERROR);
     Map<String, Double> addData = (Map<String, Double>) message.data().get("add");
@@ -66,49 +65,60 @@ public class UpdatePositionHandler {
       isBoosting = boostingValue instanceof Boolean && (Boolean) boostingValue;
     }
 
-    // IMPORTANT: Process position update FIRST, before removing segments for boost
-    // This ensures the client's expected tail position matches the server's
-    gameState.updateOwnPositions(thisUser, toAdd, toRemove);
-    gameState.updateOtherUsersWithPosition(thisUser, toAdd, toRemove, webSocket, gameStateSockets, server, isBoosting);
-    gameState.collisionCheck(thisUser, toAdd, webSocket, gameStateSockets, server);
-
-    // Now handle boost score deduction and segment removal AFTER position update
-    if (isBoosting) {
-      // Get current score to check if boost is allowed
-      Leaderboard leaderboard = server.getLeaderboard(gameState.getGameCode());
-      int currentScore = leaderboard != null ? leaderboard.getCurrentScore(thisUser) : 0;
-
-      // Process boost cost if player has score > 0 (client already checks >= MIN_BOOST_SCORE to initiate)
-      if (currentScore > 0) {
-        // Accumulate boost cost
-        double currentAccumulated = userBoostCostAccumulator.getOrDefault(thisUser, 0.0);
-        currentAccumulated += BOOST_COST_PER_UPDATE;
-
-        // When accumulated cost reaches 1 or more, deduct from score
-        if (currentAccumulated >= 1.0) {
-          int pointsToDeduct = (int) currentAccumulated;
-          // Deduct points (can go down to 0)
-          int actualDeduction = Math.min(pointsToDeduct, currentScore);
-          if (actualDeduction > 0) {
-            server.handleUpdateScore(thisUser, gameState, -actualDeduction);
-            currentAccumulated -= actualDeduction;
-
-            // Accumulate segments to remove (1 segment per 10 points)
-            double segmentAccum = userSegmentAccumulator.getOrDefault(thisUser, 0.0);
-            segmentAccum += (double) actualDeduction / POINTS_PER_SEGMENT;
-
-            // When we've accumulated enough for a full segment, remove it
-            if (segmentAccum >= 1.0) {
-              int segmentsToRemove = (int) segmentAccum;
-              gameState.decreaseSnakeLength(thisUser, segmentsToRemove, webSocket, gameStateSockets, server, SPAWN_LENGTH);
-              segmentAccum -= segmentsToRemove;
-            }
-            userSegmentAccumulator.put(thisUser, segmentAccum);
-          }
-        }
-
-        userBoostCostAccumulator.put(thisUser, currentAccumulated);
+    // Acquire per-user lock to prevent race conditions with concurrent position updates
+    ReentrantLock userLock = gameState.getUserLock(thisUser);
+    userLock.lock();
+    try {
+      // IMPORTANT: Process position update FIRST, before removing segments for boost
+      // Server-authoritative: updateOwnPositions returns the actual tail that was removed
+      Position actualRemoved = gameState.updateOwnPositions(thisUser, toAdd, toRemove);
+      if (actualRemoved == null) {
+        return; // Snake doesn't exist, skip processing
       }
+      // Use actualRemoved (server's truth) when broadcasting to other players
+      gameState.updateOtherUsersWithPosition(thisUser, toAdd, actualRemoved, webSocket, gameStateSockets, server, isBoosting);
+      gameState.collisionCheck(thisUser, toAdd, webSocket, gameStateSockets, server);
+
+      // Now handle boost score deduction and segment removal AFTER position update
+      if (isBoosting) {
+        // Get current score to check if boost is allowed
+        Leaderboard leaderboard = server.getLeaderboard(gameState.getGameCode());
+        int currentScore = leaderboard != null ? leaderboard.getCurrentScore(thisUser) : 0;
+
+        // Process boost cost if player has score > 0 (client already checks >= MIN_BOOST_SCORE to initiate)
+        if (currentScore > 0) {
+          // Accumulate boost cost
+          double currentAccumulated = userBoostCostAccumulator.getOrDefault(thisUser, 0.0);
+          currentAccumulated += BOOST_COST_PER_UPDATE;
+
+          // When accumulated cost reaches 1 or more, deduct from score
+          if (currentAccumulated >= 1.0) {
+            int pointsToDeduct = (int) currentAccumulated;
+            // Deduct points (can go down to 0)
+            int actualDeduction = Math.min(pointsToDeduct, currentScore);
+            if (actualDeduction > 0) {
+              server.handleUpdateScore(thisUser, gameState, -actualDeduction);
+              currentAccumulated -= actualDeduction;
+
+              // Accumulate segments to remove (1 segment per 10 points)
+              double segmentAccum = userSegmentAccumulator.getOrDefault(thisUser, 0.0);
+              segmentAccum += (double) actualDeduction / POINTS_PER_SEGMENT;
+
+              // When we've accumulated enough for a full segment, remove it
+              if (segmentAccum >= 1.0) {
+                int segmentsToRemove = (int) segmentAccum;
+                gameState.decreaseSnakeLength(thisUser, segmentsToRemove, webSocket, gameStateSockets, server, SPAWN_LENGTH);
+                segmentAccum -= segmentsToRemove;
+              }
+              userSegmentAccumulator.put(thisUser, segmentAccum);
+            }
+          }
+
+          userBoostCostAccumulator.put(thisUser, currentAccumulated);
+        }
+      }
+    } finally {
+      userLock.unlock();
     }
   }
 

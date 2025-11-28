@@ -6,7 +6,6 @@ import com.slitherios.actionHandlers.NewClientHandler;
 import com.slitherios.actionHandlers.UpdatePositionHandler;
 import com.slitherios.exceptions.ClientAlreadyExistsException;
 import com.slitherios.exceptions.IncorrectGameCodeException;
-import com.slitherios.exceptions.InvalidRemoveCoordinateException;
 import com.slitherios.exceptions.MissingFieldException;
 import com.slitherios.exceptions.MissingGameStateException;
 import com.slitherios.exceptions.SocketAlreadyExistsException;
@@ -28,6 +27,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
@@ -47,6 +48,7 @@ public class SlitherServer extends WebSocketServer {
   private final Map<WebSocket, User> socketToUser; // maps websockets to the user associated with that connections
   private final Map<String, GameState> gameCodeToGameState; // maps game codes to game states (for the same game)
   private final Map<GameState, Set<WebSocket>> gameStateToSockets; // maps game states to all the websockets for users in that game
+  private final ExecutorService messageExecutor; // thread pool for handling incoming messages efficiently
 
   /**
    * Constructor for the SlitherServer class. Calls the code in the WebSocketServer constructor
@@ -64,6 +66,9 @@ public class SlitherServer extends WebSocketServer {
     this.socketToUser = new HashMap<>();
     this.gameCodeToGameState = new HashMap<>();
     this.gameStateToSockets = new HashMap<>();
+    // Thread pool with fixed size - reuses threads instead of creating new ones per message
+    // 8 threads can handle ~15-20 concurrent players efficiently
+    this.messageExecutor = Executors.newFixedThreadPool(8);
   }
 
   /**
@@ -229,14 +234,15 @@ public class SlitherServer extends WebSocketServer {
    */
   @Override
   public void onMessage(WebSocket webSocket, String jsonMessage) {
-    System.out.println("server: Message received from client: " + jsonMessage);
+    // Removed verbose logging for performance - uncomment for debugging
+    // System.out.println("server: Message received from client: " + jsonMessage);
     Moshi moshi = new Moshi.Builder().build();
     JsonAdapter<Message> jsonAdapter = moshi.adapter(Message.class);
     String jsonResponse;
     try {
       Message deserializedMessage = jsonAdapter.fromJson(jsonMessage);
-      Thread t = new Thread(() -> handleOnMessage(webSocket, deserializedMessage));
-      t.start();
+      // Use thread pool instead of spawning new thread - much more efficient
+      this.messageExecutor.submit(() -> handleOnMessage(webSocket, deserializedMessage));
     } catch (IOException e) {
       MessageType messageType =
           this.socketToUser.containsKey(webSocket) ? MessageType.ERROR : MessageType.JOIN_ERROR;
@@ -441,18 +447,13 @@ public class SlitherServer extends WebSocketServer {
           if (gameState == null)
             throw new GameCodeNoGameStateException(MessageType.ERROR);
 
-          Thread t = new Thread(() -> {
-            try {
-              new UpdatePositionHandler().handlePositionUpdate(user, deserializedMessage, gameState, webSocket, this.gameStateToSockets.get(gameState), this);
-            } catch (MissingFieldException e) {
-              String res = this.serialize(this.generateMessage("The message sent by the client was missing a required field", e.messageType));
-              webSocket.send(res);
-            } catch (InvalidRemoveCoordinateException e) {
-              String res = this.serialize(this.generateMessage("Incorrect toRemove coordinate provided", e.messageType));
-              webSocket.send(res);
-            }
-          });
-          t.start();
+          // Run synchronously - we're already in a thread pool thread from onMessage
+          try {
+            new UpdatePositionHandler().handlePositionUpdate(user, deserializedMessage, gameState, webSocket, this.gameStateToSockets.get(gameState), this);
+          } catch (MissingFieldException e) {
+            String res = this.serialize(this.generateMessage("The message sent by the client was missing a required field", e.messageType));
+            webSocket.send(res);
+          }
           break;
         }
         default -> {

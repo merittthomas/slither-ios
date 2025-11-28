@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 public class Leaderboard {
 
   private final Map<User, Integer> userScores;
-  private final int LEADERBOARD_UPDATE_INTERVAL = 200; // milliseconds (was 1 second)
+  private final int LEADERBOARD_UPDATE_INTERVAL = 300; // milliseconds
   private final GameState gameState;
   private final SlitherServer slitherServer;
 
@@ -42,16 +42,15 @@ public class Leaderboard {
     ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(1);
     exec.scheduleAtFixedRate(new Runnable() {
       public void run() {
-        // code to execute repeatedly
-        System.out.println("Try to generate leaderboard");
+        // Reduced logging for performance - uncomment for debugging
+        // System.out.println("Try to generate leaderboard");
         LeaderboardEntry[] newLeaderboard = Leaderboard.this.getLeaderboard();
         Map<String, Object> data = new HashMap<>();
         data.put("leaderboard", newLeaderboard);
         Message message = new Message(MessageType.UPDATE_LEADERBOARD, data);
         Leaderboard.this.sendLeaderboardScores(message);
-        //Leaderboard.this.sendGameCode();
       }
-    }, 200, this.LEADERBOARD_UPDATE_INTERVAL, TimeUnit.MILLISECONDS); 
+    }, 300, this.LEADERBOARD_UPDATE_INTERVAL, TimeUnit.MILLISECONDS); 
   }
 
   /**
@@ -60,8 +59,9 @@ public class Leaderboard {
    */
   private void sendLeaderboardScores(Message message) {
     String json = this.slitherServer.serialize(message);
-    System.out.println("Leaderboard json");
-    System.out.println(json);
+    // Reduced logging for performance - uncomment for debugging
+    // System.out.println("Leaderboard json");
+    // System.out.println(json);
     this.slitherServer.sendToAllGameStateConnections(this.gameState, json);
   }
 
