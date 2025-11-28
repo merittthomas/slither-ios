@@ -7,3 +7,12 @@
   border: 2px solid white;
   background-color: white;
 }
+
+.snake-head {
+  position: absolute;
+  height: 35px;
+  width: 35px;
+  z-index: 10;
+  border-radius: 50%;
+  /* transform and backgroundColor are applied inline with rotation and skin color */
+}

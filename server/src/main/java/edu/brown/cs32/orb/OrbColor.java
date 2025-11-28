@@ -8,11 +8,12 @@ import java.util.Random;
 public abstract class OrbColor {
 
     /**
-     * Pseudo-randomly generates an orb color from a list of pre-determined hexidecimal color options
+     * Pseudo-randomly generates an orb color from snake skin colors
      * @return the hexidecimal string representing the color value to which an orb should be assigned
      */
     public static String generate() {
-        final String[] colors = { "ff0000", "24f51e", "221fdc", "811fdc", "1fd9dc", "ff6d00", "fdff00", "ff00b2" };
+        // Using the same colors as snake skins for consistency
+        final String[] colors = { "EA3D3D", "EA8A3D", "EAD83D", "55EA3D", "3DABEA", "3D45EA", "8A3DEA", "E43DEA", "888888" };
         Random random = new Random();
 
         return "#" + colors[random.nextInt(0, colors.length)];

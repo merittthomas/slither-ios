@@ -7,6 +7,7 @@ import GameState, { Position } from "./game/GameState";
 import Game from "./game/Game";
 import { OrbData } from "./game/orb/Orb";
 import { SnakeData, SNAKE_VELOCITY } from "./game/snake/Snake";
+import { getRandomSkin } from "./game/snake/SnakeSkins";
 import Home from "./home/Home";
 
 import MessageType from "./message/messageTypes";
@@ -33,7 +34,7 @@ export default function App(): JSX.Element {
 
   const orbSet = new Set<OrbData>();
 
-  // initial snake
+  // initial snake with random skin
   const snakeBody: Position[] = [];
   for (let i = 0; i < 20; i++) {
     snakeBody.push({ x: 600, y: 100 + 5 * i });
@@ -42,6 +43,7 @@ export default function App(): JSX.Element {
     snakeBody: new Denque(snakeBody),
     velocityX: 0,
     velocityY: SNAKE_VELOCITY,
+    skin: getRandomSkin(),
   };
 
   const [gameState, setGameState] = useState<GameState>({

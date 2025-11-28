@@ -40,7 +40,6 @@ export default function Orb({
         height: `${orbInfo.orbSize === OrbSize.SMALL ? 7.5 : 15}px`,
         width: `${orbInfo.orbSize === OrbSize.SMALL ? 7.5 : 15}px`,
         backgroundColor: `${orbInfo.color}`,
-        boxShadow: `0 0 10px 1px ${orbInfo.color}`,
       }}
     ></div>
   );
