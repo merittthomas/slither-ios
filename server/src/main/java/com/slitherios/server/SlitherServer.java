@@ -5,7 +5,6 @@ import com.squareup.moshi.Moshi;
 import com.slitherios.actionHandlers.NewClientHandler;
 import com.slitherios.actionHandlers.UpdatePositionHandler;
 import com.slitherios.exceptions.ClientAlreadyExistsException;
-import com.slitherios.exceptions.IncorrectGameCodeException;
 import com.slitherios.exceptions.MissingFieldException;
 import com.slitherios.exceptions.MissingGameStateException;
 import com.slitherios.exceptions.SocketAlreadyExistsException;
@@ -381,32 +380,56 @@ public class SlitherServer extends WebSocketServer {
     String jsonResponse;
     try {
       switch (deserializedMessage.type()) {
-        case NEW_CLIENT_WITH_CODE -> { // create a new user and add them to the provided game code if it is valid.
+        case NEW_CLIENT_WITH_CODE -> { // create a new user and add them to the provided game code, or create new game with that code
           this.inactiveConnections.remove(webSocket);
-          User newUser = new NewClientHandler().handleNewClientWithCode(deserializedMessage, webSocket, this);
-          // throw errors if the desired game code, Leaderboard, or GameState do not already exist
-          String existingGameCode = this.userToGameCode.get(newUser);
-          if (existingGameCode == null) {
-            throw new UserNoGameCodeException(MessageType.JOIN_ERROR);
+          NewClientHandler.NewClientResult result = new NewClientHandler().handleNewClientWithCode(deserializedMessage, webSocket, this);
+          User newUser = result.user;
+          String gameCode = result.gameCode;
+
+          if (result.shouldCreateNewGame) {
+            // Game code doesn't exist - create a new game with the provided code
+            this.gameCodeToGameState.put(gameCode, new GameState(this, gameCode));
+            this.gameCodeToGameState.get(gameCode).addUser(newUser);
+            this.gameStateToSockets.put(this.gameCodeToGameState.get(gameCode), new HashSet<>());
+            Leaderboard leaderboard = new Leaderboard(this.gameCodeToGameState.get(gameCode), this);
+            leaderboard.addNewUser(newUser);
+            this.userToGameCode.put(newUser, gameCode);
+            this.gameCodeToLeaderboard.put(gameCode, leaderboard);
+
+            boolean socketResult = this.addSocketToGameState(gameCode, webSocket);
+            if (!socketResult)
+              throw new SocketAlreadyExistsException(MessageType.JOIN_ERROR);
+
+            GameCode.sendGameCode(gameCode, this.gameCodeToGameState.get(gameCode), this);
+
+            GameState gameState = this.gameCodeToGameState.get(gameCode);
+            gameState.createNewSnake(newUser, webSocket, this.gameStateToSockets.get(gameState), this);
+
+            Message message = this.generateMessage("New client added to new game with custom code", MessageType.JOIN_SUCCESS);
+            message.data().put("gameCode", gameCode);
+            jsonResponse = this.serialize(message);
+            webSocket.send(jsonResponse);
+          } else {
+            // Game code exists - join existing game
+            if (this.gameCodeToLeaderboard.get(gameCode) == null) {
+              throw new GameCodeNoLeaderboardException(MessageType.JOIN_ERROR);
+            }
+            this.gameCodeToLeaderboard.get(gameCode).addNewUser(newUser);
+            if (!this.gameCodeToGameState.containsKey(gameCode))
+              throw new GameCodeNoGameStateException(MessageType.JOIN_ERROR);
+
+            this.addSocketToGameState(gameCode, webSocket);
+            this.gameCodeToGameState.get(gameCode).addUser(newUser);
+            GameState gameState = this.gameCodeToGameState.get(gameCode);
+            gameState.createNewSnake(newUser, webSocket, this.gameStateToSockets.get(gameState), this);
+
+            GameCode.sendGameCode(gameCode, this.gameCodeToGameState.get(gameCode), this);
+
+            Message message = this.generateMessage("New client added to existing game code", MessageType.JOIN_SUCCESS);
+            message.data().put("gameCode", gameCode);
+            jsonResponse = this.serialize(message);
+            webSocket.send(jsonResponse);
           }
-          if (this.gameCodeToLeaderboard.get(existingGameCode) == null) {
-            throw new GameCodeNoLeaderboardException(MessageType.JOIN_ERROR);
-          }
-          this.gameCodeToLeaderboard.get(existingGameCode).addNewUser(newUser);
-          if (!this.gameCodeToGameState.containsKey(this.userToGameCode.get(newUser)))
-            throw new GameCodeNoGameStateException(MessageType.JOIN_ERROR);
-
-          this.addSocketToGameState(existingGameCode, webSocket);
-          this.gameCodeToGameState.get(existingGameCode).addUser(newUser);
-          GameState gameState = this.gameCodeToGameState.get(this.userToGameCode.get(newUser));
-          gameState.createNewSnake(newUser, webSocket, this.gameStateToSockets.get(gameState), this);
-
-          GameCode.sendGameCode(existingGameCode, this.gameCodeToGameState.get(existingGameCode), this);
-
-          Message message = this.generateMessage("New client added to existing game code", MessageType.JOIN_SUCCESS);
-          message.data().put("gameCode", this.userToGameCode.get(newUser));
-          jsonResponse = this.serialize(message);
-          webSocket.send(jsonResponse);
           break;
         }
         case NEW_CLIENT_NO_CODE -> { // create a new user and also make a new game code, GameState, and Leaderboard for their new game.
@@ -468,9 +491,6 @@ public class SlitherServer extends WebSocketServer {
       webSocket.send(jsonResponse);
     } catch (ClientAlreadyExistsException e) {
       jsonResponse = this.serialize(this.generateMessage("Tried to add a client that already exists", e.messageType));
-      webSocket.send(jsonResponse);
-    } catch (IncorrectGameCodeException e) {
-      jsonResponse = this.serialize(this.generateMessage("The provided gameCode was incorrect", e.messageType));
       webSocket.send(jsonResponse);
     } catch (UserNoGameCodeException e) {
       jsonResponse = this.serialize(this.generateMessage("User had no corresponding game code", e.messageType));

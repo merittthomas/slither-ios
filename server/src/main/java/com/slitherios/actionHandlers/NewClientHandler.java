@@ -1,7 +1,6 @@
 package com.slitherios.actionHandlers;
 
 import com.slitherios.exceptions.ClientAlreadyExistsException;
-import com.slitherios.exceptions.IncorrectGameCodeException;
 import com.slitherios.exceptions.MissingFieldException;
 import com.slitherios.exceptions.UsernameTakenException;
 import com.slitherios.gameState.GameState;
@@ -18,23 +17,38 @@ import org.java_websocket.WebSocket;
 public class NewClientHandler {
 
   /**
+   * Result class for handleNewClientWithCode to indicate if a new game should be created
+   */
+  public static class NewClientResult {
+    public final User user;
+    public final String gameCode;
+    public final boolean shouldCreateNewGame;
+
+    public NewClientResult(User user, String gameCode, boolean shouldCreateNewGame) {
+      this.user = user;
+      this.gameCode = gameCode;
+      this.shouldCreateNewGame = shouldCreateNewGame;
+    }
+  }
+
+  /**
    * Activated when SlitherServer receives NEW_CLIENT_WITH_CODE method to
-   * add a new user to an existing game (using an existing game code)
+   * add a new user to an existing game (using an existing game code), or
+   * create a new game with the provided code if it doesn't exist
    *
    * @param message  : the deserialized message from the client containing
    * information about the new user's username and the game code corresponding
-   * to the game to which they should be added
+   * to the game to which they should be added (or created)
    * @param websocket : the WebSocket corresponding to the user who is being
-   * added to the existing game
+   * added to the game
    * @param server : the server through which the new user is assigned
    * a websocket and game code
-   * @return the new User object being added to the existing game
+   * @return NewClientResult containing the user, game code, and whether a new game should be created
    * @throws MissingFieldException if the deserialized message does not contain 'username' and 'gameCode' keyed fields
    * @throws ClientAlreadyExistsException if the socket already has a corresponding user
-   * @throws IncorrectGameCodeException if the receieved game code does not exist
    * @throws UsernameTakenException if the username is already taken in the lobby
    */
-  public User handleNewClientWithCode(Message message, WebSocket websocket, SlitherServer server) throws MissingFieldException, ClientAlreadyExistsException, IncorrectGameCodeException, UsernameTakenException {
+  public NewClientResult handleNewClientWithCode(Message message, WebSocket websocket, SlitherServer server) throws MissingFieldException, ClientAlreadyExistsException, UsernameTakenException {
     if (!message.data().containsKey("username") || !message.data().containsKey("gameCode"))
       throw new MissingFieldException(message, MessageType.JOIN_ERROR);
     String username = message.data().get("username").toString();
@@ -42,21 +56,27 @@ public class NewClientHandler {
         ? message.data().get("skinId").toString()
         : "astro";  // Default fallback for backward compatibility
     String gameCode = message.data().get("gameCode").toString();
-    if (!server.getExistingGameCodes().contains(gameCode))
-      throw new IncorrectGameCodeException(MessageType.JOIN_ERROR);
 
-    // Check if username is already taken in this lobby
-    GameState targetGameState = server.getGameStateByCode(gameCode);
-    if (targetGameState != null && targetGameState.isUsernameTaken(username)) {
-      throw new UsernameTakenException(MessageType.USERNAME_TAKEN);
+    boolean gameExists = server.getExistingGameCodes().contains(gameCode);
+
+    // If game exists, check if username is already taken in this lobby
+    if (gameExists) {
+      GameState targetGameState = server.getGameStateByCode(gameCode);
+      if (targetGameState != null && targetGameState.isUsernameTaken(username)) {
+        throw new UsernameTakenException(MessageType.USERNAME_TAKEN);
+      }
     }
 
     User user = new User(username, skinId);
     boolean result = server.addWebsocketUser(websocket, user);
     if (!result)
       throw new ClientAlreadyExistsException(MessageType.JOIN_ERROR);
-    server.addGameCodeToUser(gameCode, user);
-    return user;
+
+    if (gameExists) {
+      server.addGameCodeToUser(gameCode, user);
+    }
+
+    return new NewClientResult(user, gameCode, !gameExists);
   }
 
   /**
