@@ -108,13 +108,13 @@
 }
 
 .new-game-button {
-  background-color: transparent;
+  background-color: rgba(124, 252, 0, 0.2);
   border: 2px solid #7CFC00;
   color: #7CFC00;
   font-weight: bold;
   font-size: 1rem;
   padding: 0.5rem 1.5rem;
-  border-radius: 10px;
+  border-radius: 9999px;
   box-shadow: 0 0 10px #7CFC00, 0 0 20px #7CFC00;
   height: 2.5rem;
   display: flex;
@@ -123,7 +123,7 @@
 }
 
 .new-game-button:hover {
-  background-color: rgba(124, 252, 0, 0.1);
+  background-color: rgba(124, 252, 0, 0.3);
   border-color: #7CFC00;
   color: #7CFC00;
   box-shadow: 0 0 15px #7CFC00, 0 0 25px #7CFC00;
@@ -173,11 +173,11 @@
 }
 
 .join-game-button {
-  background-color: transparent;
+  background-color: rgba(255, 165, 0, 0.2);
   border: 2px solid #FFA500;
   color: #FFA500;
   font-weight: bold;
-  border-radius: 10px;
+  border-radius: 9999px;
   padding: 0.5rem 1.5rem;
   box-shadow: 0 0 10px #FFA500, 0 0 20px #FFA500;
   height: 2.5rem;
@@ -187,7 +187,7 @@
 }
 
 .join-game-button:hover {
-  background-color: rgba(255, 165, 0, 0.1);
+  background-color: rgba(255, 165, 0, 0.3);
   border-color: #FFA500;
   color: #FFA500;
   box-shadow: 0 0 15px #FFA500, 0 0 25px #FFA500;
