@@ -16,3 +16,24 @@
   border-radius: 50%;
   /* transform and backgroundColor are applied inline with rotation and skin color */
 }
+
+/* Other players' snake segments - with CSS transition for smooth interpolation */
+.other-snake {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  height: 35px;
+  width: 35px;
+  border-radius: 50%;
+  border: 2px solid white;
+  background-color: white;
+  transition: left 50ms linear, top 50ms linear;
+}
+
+.other-snake-head {
+  position: absolute;
+  height: 35px;
+  width: 35px;
+  z-index: 10;
+  border-radius: 50%;
+  transition: left 50ms linear, top 50ms linear, transform 50ms linear;
+}

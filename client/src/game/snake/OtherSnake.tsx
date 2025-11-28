@@ -86,11 +86,11 @@ export default function OtherSnake({
         if (isHead) {
           // Get rotation for this player's head
           const rotation = rotationMap.get(skinId) || 0;
-          // Render head as image with rotation
+          // Render head as image with rotation (using other-snake-head for smooth transitions)
           return (
             <img
               key={index}
-              className="snake-head"
+              className="other-snake-head"
               src={skin.headImage}
               alt="snake head"
               style={{
@@ -103,11 +103,11 @@ export default function OtherSnake({
             />
           );
         } else {
-          // Render body segment
+          // Render body segment (using other-snake for smooth transitions)
           return (
             <div
               key={index}
-              className="snake"
+              className="other-snake"
               style={{
                 left: bodyPart.x + offset.x,
                 top: bodyPart.y + offset.y,
