@@ -8,13 +8,31 @@
   background-color: white;
 }
 
+/* Container for layered snake head (background circle + image) */
+.snake-head-container {
+  position: absolute;
+  height: 35px;
+  width: 35px;
+  transform: translate(-50%, -50%);
+}
+
+/* Circular background behind snake head */
+.snake-head-bg {
+  position: absolute;
+  height: 35px;
+  width: 35px;
+  border-radius: 50%;
+  border: 2px solid white;
+  z-index: 1;
+}
+
+/* Snake head image - no border-radius to show full image */
 .snake-head {
   position: absolute;
   height: 35px;
   width: 35px;
-  z-index: 10;
-  border-radius: 50%;
-  /* transform and backgroundColor are applied inline with rotation and skin color */
+  z-index: 2;
+  /* No border-radius - show full image */
 }
 
 /* Other players' snake segments - with CSS transition for smooth interpolation */
@@ -29,13 +47,34 @@
   transition: left 50ms linear, top 50ms linear;
 }
 
+/* Container for layered other snake head (background circle + image) */
+.other-snake-head-container {
+  position: absolute;
+  height: 35px;
+  width: 35px;
+  transform: translate(-50%, -50%);
+  transition: left 50ms linear, top 50ms linear;
+}
+
+/* Circular background behind other snake head */
+.other-snake-head-bg {
+  position: absolute;
+  height: 35px;
+  width: 35px;
+  border-radius: 50%;
+  border: 2px solid white;
+  z-index: 1;
+  transition: transform 50ms linear;
+}
+
+/* Other snake head image - no border-radius to show full image */
 .other-snake-head {
   position: absolute;
   height: 35px;
   width: 35px;
-  z-index: 10;
-  border-radius: 50%;
-  transition: left 50ms linear, top 50ms linear, transform 50ms linear;
+  z-index: 2;
+  /* No border-radius - show full image */
+  transition: transform 50ms linear;
 }
 
 /* Player name tag - pill shaped with black background */
@@ -52,4 +91,24 @@
   z-index: 1001;
   pointer-events: none;
   transition: left 50ms linear, top 50ms linear;
+}
+
+/* Boosting animation - pulsing glow effect */
+@keyframes boostPulse {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.3);
+  }
+}
+
+.snake.boosting,
+.snake-head.boosting {
+  animation: boostPulse 0.3s ease-in-out infinite;
+}
+
+.other-snake.boosting,
+.other-snake-head.boosting {
+  animation: boostPulse 0.3s ease-in-out infinite;
 }

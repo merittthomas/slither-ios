@@ -1,5 +1,6 @@
 package com.slitherios.gameState;
 
+import com.slitherios.actionHandlers.UpdatePositionHandler;
 import com.slitherios.exceptions.InvalidRemoveCoordinateException;
 import com.slitherios.message.Message;
 import com.slitherios.message.MessageType;
@@ -19,6 +20,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.java_websocket.WebSocket;
@@ -38,6 +40,8 @@ public class GameState {
   private final Map<User, Set<Position>> userToOwnPositions; // maps each user to their own snake's body parts
   private final Map<User, Deque<Position>> userToSnakeDeque; // maps each user to a double ended queue with their body parts (in order)
   private final int SNAKE_CIRCLE_RADIUS = 35; // radius of each body part of the snakes
+  private final Map<User, Double> userOrbSegmentAccumulator = new ConcurrentHashMap<>(); // tracks accumulated points toward next body segment
+  private static final int POINTS_PER_SEGMENT = 2; // points required to gain one body segment (1 segment per 2 points)
 
   /**
    * GameState constructor to initialize all necessary variables, including
@@ -172,6 +176,93 @@ public class GameState {
   }
 
   /**
+   * Sends a message to the corresponding client (via webSocket) that this
+   * user's snake length has been decreased
+   * @param webSocket : the webSocket through which to send the decreased length message
+   * @param count : the number of body parts to remove from the tail
+   * @param server : the server through which to serialize the message to be sent via webSocket
+   */
+  private void sendOwnDecreasedLength(WebSocket webSocket, int count, SlitherServer server) {
+    Map<String, Object> data = new HashMap<>();
+    data.put("count", count);
+    Message message = new Message(MessageType.DECREASE_OWN_LENGTH, data);
+    webSocket.send(server.serialize(message));
+  }
+
+  /**
+   * Sends a message to all other corresponding clients (to this GameState) (via webSocket) that this
+   * user's snake length has been decreased
+   * @param webSocket : the webSocket through which to send the decreased length message
+   * @param removedPositions : the list of Positions that were removed from the tail
+   * @param gameStateSockets : the list of other clients' sockets to receive the update in this client's snake length
+   * @param server : the server through which to serialize the message to be sent via webSocket
+   * @param skinId : the skin ID of the snake being decreased
+   */
+  private void sendOthersDecreasedLength(WebSocket webSocket, List<Position> removedPositions, Set<WebSocket> gameStateSockets, SlitherServer server, String skinId) {
+    Map<String, Object> data = new HashMap<>();
+    data.put("removedPositions", removedPositions);
+    data.put("skinId", skinId);
+    Message message = new Message(MessageType.DECREASE_OTHER_LENGTH, data);
+    String jsonMessage = server.serialize(message);
+    for (WebSocket socket : gameStateSockets) {
+      if (socket.equals(webSocket))
+        continue;
+      socket.send(jsonMessage);
+    }
+  }
+
+  /**
+   * Decreases a user's snake length by removing segments from the tail
+   * @param thisUser : the user whose snake is being shortened
+   * @param count : the number of segments to remove
+   * @param webSocket : the current user's socket
+   * @param gameStateSockets : all sockets in this game
+   * @param server : the server instance
+   * @param minLength : minimum length the snake can be (spawn length)
+   * @return the number of segments actually removed
+   */
+  public int decreaseSnakeLength(User thisUser, int count, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server, int minLength) {
+    Deque<Position> snakeDeque = this.userToSnakeDeque.get(thisUser);
+    if (snakeDeque == null) return 0;
+
+    int currentLength = snakeDeque.size();
+    int canRemove = Math.min(count, currentLength - minLength);
+    if (canRemove <= 0) return 0;
+
+    List<Position> removedPositions = new ArrayList<>();
+    for (int i = 0; i < canRemove; i++) {
+      Position removed = snakeDeque.pollLast();
+      if (removed != null) {
+        removedPositions.add(removed);
+        this.userToOwnPositions.get(thisUser).remove(removed);
+        // Remove from other users' tracking
+        for (User user : this.userToOthersPositions.keySet()) {
+          if (!user.equals(thisUser)) {
+            this.userToOthersPositions.get(user).remove(removed);
+          }
+        }
+      }
+    }
+
+    if (removedPositions.size() > 0) {
+      this.sendOwnDecreasedLength(webSocket, removedPositions.size(), server);
+      this.sendOthersDecreasedLength(webSocket, removedPositions, gameStateSockets, server, thisUser.getSkinId());
+    }
+
+    return removedPositions.size();
+  }
+
+  /**
+   * Gets the current length of a user's snake
+   * @param user : the user whose snake length to get
+   * @return the length of the snake, or 0 if user not found
+   */
+  public int getSnakeLength(User user) {
+    Deque<Position> deque = this.userToSnakeDeque.get(user);
+    return deque != null ? deque.size() : 0;
+  }
+
+  /**
    * Creates a new snake for this user at a preset position and sends this data to all other users sharing this GameState
    * @param thisUser : the user for which this new snake is being generated
    * @param webSocket : the current user's socket through which to send data to the client
@@ -180,7 +271,7 @@ public class GameState {
    */
   public void createNewSnake(User thisUser, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server) {
     List<Position> newSnake = new ArrayList<>();
-    for (int i=0; i < 20; i++) {
+    for (int i=0; i < 10; i++) {
       Position position = new Position(600, 100 + 5 * i);
       newSnake.add(position);
       this.userToSnakeDeque.get(thisUser).addLast(position);
@@ -193,11 +284,12 @@ public class GameState {
    * @param thisUser : the user whose position is to change
    * @param toAdd : the position to add to the front of this user's snake
    * @param toRemove : the position to remove from the back of this user's snake
-   * @param webSocket : 
+   * @param webSocket :
    * @param gameStateSockets :
-   * @param server : 
+   * @param server :
+   * @param isBoosting : whether the user is currently boosting
    */
-  public void updateOtherUsersWithPosition(User thisUser, Position toAdd, Position toRemove, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server) {
+  public void updateOtherUsersWithPosition(User thisUser, Position toAdd, Position toRemove, WebSocket webSocket, Set<WebSocket> gameStateSockets, SlitherServer server, boolean isBoosting) {
     for (User user : this.userToOthersPositions.keySet()) {
       if (user.equals(thisUser))
         continue;
@@ -210,6 +302,7 @@ public class GameState {
     data.put("remove", toRemove);
     data.put("skinId", thisUser.getSkinId());
     data.put("username", thisUser.getUsername());
+    data.put("boosting", isBoosting);
     Message message = new Message(MessageType.UPDATE_POSITION, data);
     String jsonResponse = server.serialize(message);
 
@@ -366,6 +459,8 @@ public class GameState {
       this.userToOthersPositions.remove(thisUser);
       this.userToSnakeDeque.remove(thisUser);
       server.handleUserDied(thisUser, webSocket, this);
+      this.clearUserOrbAccumulator(thisUser);
+      UpdatePositionHandler.clearUserBoostAccumulator(thisUser);
       this.generateDeathOrbs(deadSnakePositions, deadSkinId);
       return;
     }
@@ -386,13 +481,15 @@ public class GameState {
         this.userToOthersPositions.remove(thisUser);
         this.userToSnakeDeque.remove(thisUser);
         server.handleUserDied(thisUser, webSocket, this);
+        this.clearUserOrbAccumulator(thisUser);
+        UpdatePositionHandler.clearUserBoostAccumulator(thisUser);
         this.generateDeathOrbs(deadSnakePositions, deadSkinId);
         return;
       }
     }
 
     // Check if the user's snake has eaten any orbs -- remove the eaten orbs and increase the length
-    // of the snake when this happens
+    // of the snake when this happens (only add 1 body segment per 10 points)
     List<Position> newBodyParts = new ArrayList<>();
     boolean orbCollided = false;
     for (Orb orb : allOrbs) {
@@ -406,10 +503,18 @@ public class GameState {
         };
         server.handleUpdateScore(thisUser, this, orbValue);
 
-        for (int i=0; i < orbValue; i++) {
+        // Accumulate points toward segments (10 points = 1 segment)
+        double segmentAccum = userOrbSegmentAccumulator.getOrDefault(thisUser, 0.0);
+        segmentAccum += (double) orbValue / POINTS_PER_SEGMENT;
+
+        // Add segments only when accumulator reaches 1.0+
+        int segmentsToAdd = (int) segmentAccum;
+        for (int i = 0; i < segmentsToAdd; i++) {
           Position newPosition = this.getNewBodyPartPosition(thisUser);
           newBodyParts.add(newPosition);
         }
+        segmentAccum -= segmentsToAdd;
+        userOrbSegmentAccumulator.put(thisUser, segmentAccum);
       }
     }
     if (orbCollided)
@@ -443,5 +548,13 @@ public class GameState {
       }
     }
     return false;
+  }
+
+  /**
+   * Clears the orb segment accumulator for a user (call when user dies or disconnects)
+   * @param user : the user to clear
+   */
+  public void clearUserOrbAccumulator(User user) {
+    userOrbSegmentAccumulator.remove(user);
   }
 }

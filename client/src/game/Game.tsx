@@ -20,6 +20,8 @@ interface GameProps {
   gameCode: string;
   /** The client's websocket for communication with the Slither+ server */
   socket: WebSocket;
+  /** The client's username */
+  username: string;
 }
 
 /**
@@ -38,6 +40,7 @@ export default function Game({
   scores,
   gameCode,
   socket,
+  username,
 }: GameProps) {
   return (
     <div>
@@ -45,6 +48,8 @@ export default function Game({
         gameState={gameState}
         setGameState={setGameState}
         socket={socket}
+        scores={scores}
+        username={username}
       />
       <Leaderboard leaderboard={scores} />
       <GameCode gameCode={gameCode} />

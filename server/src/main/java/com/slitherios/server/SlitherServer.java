@@ -85,6 +85,16 @@ public class SlitherServer extends WebSocketServer {
   }
 
   /**
+   * Returns the Leaderboard associated with the provided game code.
+   *
+   * @param gameCode - a String: The game code for which to retrieve the Leaderboard.
+   * @return the Leaderboard associated with the game code, or null if not found.
+   */
+  public Leaderboard getLeaderboard(String gameCode) {
+    return this.gameCodeToLeaderboard.get(gameCode);
+  }
+
+  /**
    * Sends a json String message (messageJson) to all of the clients (via their websockets) within
    * the provided gameState (i.e. all of the clients playing together in some game).
    *

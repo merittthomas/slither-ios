@@ -31,6 +31,8 @@ export default interface GameState {
   otherPlayerRotations: Map<string, number>;
   /** A map from skinId to username for other players */
   otherPlayerUsernames: Map<string, string>;
+  /** A map from skinId to boosting state for other players */
+  otherPlayerBoosting: Map<string, boolean>;
   /** A metadata representation of all current in-game orbs */
   orbs: Set<OrbData>;
 

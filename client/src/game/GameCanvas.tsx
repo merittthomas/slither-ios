@@ -1,4 +1,4 @@
-import { useEffect, Dispatch, SetStateAction } from "react";
+import { useEffect, useRef, Dispatch, SetStateAction } from "react";
 
 import GameState, { Position } from "./GameState";
 import Snake, { SnakeData, SNAKE_VELOCITY } from "./snake/Snake";
@@ -6,7 +6,7 @@ import Orb, { OrbData } from "./orb/Orb";
 import Border from "./boundary/Boundary";
 import OtherSnake from "./snake/OtherSnake";
 
-import { sendUpdatePositionMessage } from "../message/message";
+import { sendUpdatePositionWithBoostMessage } from "../message/message";
 
 /**
  * The size of the map. The map is rendered centered on the origin, so
@@ -24,6 +24,18 @@ const offset: Position = { x: 0, y: 0 };
 const keysPressed: { [key: string]: boolean } = {};
 /** Track if keyboard is active (to prioritize over mouse) */
 let keyboardActive = false;
+/** Track if mouse button is pressed (for boost) */
+let mousePressed = false;
+/** Track if boost is currently active */
+let boostActive = false;
+/** Track if we're in an active boost session (started with enough score) */
+let boostSessionActive = false;
+/** Minimum score required to START boosting */
+const MIN_BOOST_SCORE = 10;
+/** Boost speed multiplier */
+const BOOST_MULTIPLIER = 2;
+/** Track if boost keys are pressed (space, W, up arrow) */
+const boostKeysPressed: { [key: string]: boolean } = {};
 // let lastUpdatedPosition: Position = { x: 0, y: 0 };
 // let lastUpdatedTime: number = new Date().getTime();
 
@@ -38,6 +50,10 @@ interface GameCanvasProps {
   setGameState: Dispatch<SetStateAction<GameState>>;
   /** The client's websocket for communication with the Slither+ server */
   socket: WebSocket;
+  /** A map from each user, as a string, to their score */
+  scores: Map<string, number>;
+  /** The client's username for score lookup */
+  username: string;
 }
 
 /**
@@ -54,30 +70,96 @@ export default function GameCanvas({
   gameState,
   setGameState,
   socket,
+  scores,
+  username,
 }: GameCanvasProps): JSX.Element {
+  // Use refs to track current values for use in setInterval callback
+  const scoresRef = useRef(scores);
+  const usernameRef = useRef(username);
+
+  // Keep refs updated when props change
+  useEffect(() => {
+    scoresRef.current = scores;
+    usernameRef.current = username;
+  }, [scores, username]);
+
   const onMouseMove = (e: MouseEvent) => {
     mousePos.x = e.pageX;
     mousePos.y = e.pageY;
     keyboardActive = false; // Switch back to mouse control when mouse moves
   };
 
+  const onMouseDown = () => {
+    mousePressed = true;
+  };
+
+  const onMouseUp = () => {
+    mousePressed = false;
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
     const key = e.key.toLowerCase();
-    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+    // Movement keys (turning)
+    if (['a', 's', 'd', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
       keysPressed[key] = true;
       keyboardActive = true;
       e.preventDefault(); // Prevent page scrolling with arrow keys
+    }
+    // Boost keys (space, W, up arrow)
+    if (key === ' ' || key === 'w' || key === 'arrowup') {
+      boostKeysPressed[key] = true;
+      e.preventDefault();
     }
   };
 
   const onKeyUp = (e: KeyboardEvent) => {
     const key = e.key.toLowerCase();
     keysPressed[key] = false;
+    boostKeysPressed[key] = false;
+  };
+
+  /** Check if boost is being requested via any input method */
+  const isBoostRequested = (): boolean => {
+    return mousePressed ||
+           boostKeysPressed[' '] ||
+           boostKeysPressed['w'] ||
+           boostKeysPressed['arrowup'];
+  };
+
+  /** Get the current player's score */
+  const getCurrentScore = (): number => {
+    return scoresRef.current.get(usernameRef.current) || 0;
   };
 
   const updatePositions = () => {
     const newGameState: GameState = { ...gameState };
-    const updatedSnake: SnakeData = moveSnake(gameState.snake, socket);
+    const currentScore = getCurrentScore();
+    const wantsBoost = isBoostRequested();
+
+    // Boost session management:
+    // - Need MIN_BOOST_SCORE to START a new boost session
+    // - Once started, can continue while score > 0 and button held
+    // - Session ends when button released OR score hits 0
+    if (wantsBoost) {
+      if (!boostSessionActive && currentScore >= MIN_BOOST_SCORE) {
+        // Start new boost session
+        boostSessionActive = true;
+      }
+      // Continue boosting if in session and have score
+      boostActive = boostSessionActive && currentScore > 0;
+    } else {
+      // Button released - end session
+      boostSessionActive = false;
+      boostActive = false;
+    }
+
+    // Also end session if score hits 0
+    if (currentScore <= 0) {
+      boostSessionActive = false;
+      boostActive = false;
+    }
+
+    const updatedSnake: SnakeData = moveSnake(gameState.snake, socket, boostActive);
     // constantly update your own snake using moveSnake
     newGameState.snake = updatedSnake;
     setGameState(newGameState);
@@ -88,6 +170,9 @@ export default function GameCanvas({
     const interval = setInterval(updatePositions, 50);
     // updates mouse position when moved, determines target direction for snake
     window.addEventListener("mousemove", onMouseMove);
+    // mouse click handlers for boost
+    window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mouseup", onMouseUp);
     // keyboard event listeners for WASD and arrow key controls
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -96,6 +181,8 @@ export default function GameCanvas({
       // clean up upon closing
       clearInterval(interval);
       window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mouseup", onMouseUp);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
@@ -110,11 +197,11 @@ export default function GameCanvas({
 
   return (
     <div>
-      <Snake snake={gameState.snake} offset={offset} />
+      <Snake snake={gameState.snake} offset={offset} isBoosting={boostActive} />
       {Array.from(gameState.orbs).map((orb: OrbData, ind: number) => (
         <Orb orbInfo={orb} offset={offset} key={ind} />
       ))}
-      <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} usernameMap={gameState.otherPlayerUsernames} />
+      <OtherSnake positions={gameState.otherBodies} offset={offset} skinMap={gameState.otherPlayerSkins} headMap={gameState.otherPlayerHeads} rotationMap={gameState.otherPlayerRotations} usernameMap={gameState.otherPlayerUsernames} boostingMap={gameState.otherPlayerBoosting} />
       snakes
       <Border boundaries={canvasSize} offset={offset} />
     </div>
@@ -142,9 +229,10 @@ function getKeyboardTurnRate(): number {
  * and sends the new position to the Slither+ server
  * @param snake A metadata representation of the client's snake
  * @param socket The client's websocket for communication with the Slither+ server
+ * @param isBoosting Whether the snake is currently boosting
  * @returns the newly updated metadata for the client's snake
  */
-export function moveSnake(snake: SnakeData, socket: WebSocket): SnakeData {
+export function moveSnake(snake: SnakeData, socket: WebSocket, isBoosting: boolean = false): SnakeData {
   // remove last position from the end (to simulate movement)
   const removePosition: Position | undefined = snake.snakeBody.pop();
   const front: Position | undefined = snake.snakeBody.peekFront();
@@ -181,9 +269,10 @@ export function moveSnake(snake: SnakeData, socket: WebSocket): SnakeData {
       }
     }
 
-    // calculate new velocity
-    snake.velocityX = SNAKE_VELOCITY * Math.cos(vel_angle);
-    snake.velocityY = SNAKE_VELOCITY * Math.sin(vel_angle);
+    // calculate new velocity (apply boost multiplier if boosting)
+    const currentSpeed = isBoosting ? SNAKE_VELOCITY * BOOST_MULTIPLIER : SNAKE_VELOCITY;
+    snake.velocityX = currentSpeed * Math.cos(vel_angle);
+    snake.velocityY = currentSpeed * Math.sin(vel_angle);
 
     // find new position of head based on velocity
     const newPosition: Position = {
@@ -203,8 +292,8 @@ export function moveSnake(snake: SnakeData, socket: WebSocket): SnakeData {
         x: Number(removePosition.x.toFixed(2)),
         y: Number(removePosition.y.toFixed(2)),
       };
-      // send message to server with add and remove positions
-      sendUpdatePositionMessage(socket, toAdd, toRemove);
+      // send message to server with add and remove positions (include boost state)
+      sendUpdatePositionWithBoostMessage(socket, toAdd, toRemove, isBoosting);
     }
   }
   return snake;

@@ -31,12 +31,13 @@ export default function App(): JSX.Element {
   const [gameStarted, setGameStarted] = useState(false);
   const [scores, setScores] = useState(new Map<string, number>());
   const [gameCode, setGameCode] = useState("");
+  const [username, setUsername] = useState("");
 
   const orbSet = new Set<OrbData>();
 
-  // initial snake with random skin
+  // initial snake with random skin (10 segments = spawn length at 0 points)
   const snakeBody: Position[] = [];
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 10; i++) {
     snakeBody.push({ x: 600, y: 100 + 5 * i });
   }
   const snake: SnakeData = {
@@ -53,6 +54,7 @@ export default function App(): JSX.Element {
     otherPlayerHeads: new Map<string, string>(),
     otherPlayerRotations: new Map<string, number>(),
     otherPlayerUsernames: new Map<string, string>(),
+    otherPlayerBoosting: new Map<string, boolean>(),
     orbs: orbSet,
     scores: new Map(),
     gameCode: "abc",
@@ -67,6 +69,7 @@ export default function App(): JSX.Element {
           scores={scores}
           gameCode={gameCode}
           socket={socket}
+          username={username}
         />
       ) : (
         <Home
@@ -76,6 +79,7 @@ export default function App(): JSX.Element {
           gameState={gameState}
           setGameState={setGameState}
           orbSet={orbSet}
+          setAppUsername={setUsername}
         />
       )}
     </div>
@@ -175,6 +179,7 @@ export function registerSocket(
         const toRemove: Position = updatePositionMessage.data.remove;
         const skinId: string = message.data.skinId || "astro";
         const username: string = message.data.username || "";
+        const isBoosting: boolean = message.data.boosting || false;
         const newGameState: GameState = { ...gameState };
         console.log(
           "gameState otherbodies size: " + gameState.otherBodies.size
@@ -200,9 +205,10 @@ export function registerSocket(
           }
         }
 
-        // Track the head position and username for this player
+        // Track the head position, username, and boosting state for this player
         newGameState.otherPlayerHeads.set(skinId, addKey);
         newGameState.otherPlayerUsernames.set(skinId, username);
+        newGameState.otherPlayerBoosting.set(skinId, isBoosting);
         setGameState(newGameState);
         break;
       }
@@ -233,11 +239,12 @@ export function registerSocket(
           newGameState.otherBodies.delete(posKey);
           newGameState.otherPlayerSkins.delete(posKey);
         });
-        // Remove the head, rotation, and username tracking for this dead player
+        // Remove the head, rotation, username, and boosting tracking for this dead player
         if (deadSkinId) {
           newGameState.otherPlayerHeads.delete(deadSkinId);
           newGameState.otherPlayerRotations.delete(deadSkinId);
           newGameState.otherPlayerUsernames.delete(deadSkinId);
+          newGameState.otherPlayerBoosting.delete(deadSkinId);
         }
         setGameState(newGameState);
         break;
@@ -292,6 +299,33 @@ export function registerSocket(
           const key = JSON.stringify(bodyPart);
           newGameState.otherBodies.add(key);
           newGameState.otherPlayerSkins.set(key, skinId);
+        });
+        setGameState(newGameState);
+        break;
+      }
+
+      // the client's snake decreased in length (boosting)
+      case MessageType.DECREASE_OWN_LENGTH: {
+        console.log("decrease own length message");
+        const count: number = message.data.count || 0;
+        const newGameState: GameState = { ...gameState };
+        // Remove segments from the tail
+        for (let i = 0; i < count; i++) {
+          newGameState.snake.snakeBody.pop();
+        }
+        setGameState(newGameState);
+        break;
+      }
+
+      // another client's snake decreased in length (boosting)
+      case MessageType.DECREASE_OTHER_LENGTH: {
+        console.log("decrease other length message");
+        const removedPositions: Position[] = message.data.removedPositions || [];
+        const newGameState: GameState = { ...gameState };
+        removedPositions.forEach((position: Position) => {
+          const posKey = JSON.stringify(position);
+          newGameState.otherBodies.delete(posKey);
+          newGameState.otherPlayerSkins.delete(posKey);
         });
         setGameState(newGameState);
         break;

@@ -57,6 +57,7 @@ function adjustColorForGradient(hex: string): string {
  * @param headMap a map from skinId to head position JSON string
  * @param rotationMap a map from skinId to head rotation angle (degrees)
  * @param usernameMap a map from skinId to username for name tags
+ * @param boostingMap a map from skinId to boosting state
  * @returns a rendering of all other snake positions on screen
  */
 export default function OtherSnake({
@@ -66,6 +67,7 @@ export default function OtherSnake({
   headMap,
   rotationMap,
   usernameMap,
+  boostingMap,
 }: {
   positions: Set<string>;
   offset: Position;
@@ -73,6 +75,7 @@ export default function OtherSnake({
   headMap: Map<string, string>;
   rotationMap: Map<string, number>;
   usernameMap: Map<string, string>;
+  boostingMap: Map<string, boolean>;
 }): JSX.Element {
   // Create a set of head positions for quick lookup
   const headPositions = new Set(headMap.values());
@@ -85,12 +88,18 @@ export default function OtherSnake({
         const skin = getSkinById(skinId);
         const isHead = headPositions.has(posString);
         const darkerColor = adjustColorForGradient(skin.color);
+        const isBoosting = boostingMap.get(skinId) || false;
+
+        // Boost glow effect
+        const boostGlow = isBoosting
+          ? `0 0 15px ${skin.color}, 0 0 30px ${skin.color}, 0 0 45px ${skin.color}`
+          : "none";
 
         if (isHead) {
           // Get rotation and username for this player's head
           const rotation = rotationMap.get(skinId) || 0;
           const username = usernameMap.get(skinId) || "";
-          // Render head as image with rotation and name tag (using other-snake-head for smooth transitions)
+          // Render head as layered elements: circular background + image on top
           return (
             <div key={index}>
               {/* Name tag above head */}
@@ -105,18 +114,34 @@ export default function OtherSnake({
                   {username}
                 </div>
               )}
-              <img
-                className="other-snake-head"
-                src={skin.headImage}
-                alt="snake head"
+              <div
+                className="other-snake-head-container"
                 style={{
                   left: bodyPart.x + offset.x,
                   top: bodyPart.y + offset.y,
-                  transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                  background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
                   zIndex: 1000,
                 }}
-              />
+              >
+                {/* Circular gradient background */}
+                <div
+                  className={`other-snake-head-bg ${isBoosting ? "boosting" : ""}`}
+                  style={{
+                    background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
+                    borderColor: darkerColor,
+                    transform: `rotate(${rotation}deg)`,
+                    boxShadow: boostGlow,
+                  }}
+                />
+                {/* Head image on top - no border-radius */}
+                <img
+                  className={`other-snake-head ${isBoosting ? "boosting" : ""}`}
+                  src={skin.headImage}
+                  alt="snake head"
+                  style={{
+                    transform: `rotate(${rotation}deg)`,
+                  }}
+                />
+              </div>
             </div>
           );
         } else {
@@ -124,12 +149,13 @@ export default function OtherSnake({
           return (
             <div
               key={index}
-              className="other-snake"
+              className={`other-snake ${isBoosting ? "boosting" : ""}`}
               style={{
                 left: bodyPart.x + offset.x,
                 top: bodyPart.y + offset.y,
                 background: `radial-gradient(circle at center, ${skin.color}, ${darkerColor})`,
                 borderColor: darkerColor,
+                boxShadow: boostGlow,
               }}
             ></div>
           );

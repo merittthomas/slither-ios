@@ -83,14 +83,17 @@ function adjustColorForGradient(hex: string): string {
  * given position offset; a snake is rendered as a consecutive collection of circles
  * @param snake a metadata representation of a snake
  * @param offset the offset at which the snake is to be rendered
+ * @param isBoosting whether the snake is currently boosting (for glow effect)
  * @returns a HTML element rendering the given snake
  */
 export default function Snake({
   snake,
   offset,
+  isBoosting = false,
 }: {
   snake: SnakeData;
   offset: Position;
+  isBoosting?: boolean;
 }): JSX.Element {
   const bodyArray = snake.snakeBody.toArray();
   const lastRotationRef = useRef<number>(0);
@@ -125,6 +128,11 @@ export default function Snake({
   const headImageSrc = snake.skin?.headImage || "/assets/snake-head.png";
   const darkerColor = adjustColorForGradient(skinColor);
 
+  // Boost glow effect - creates a pulsing glow around the snake when boosting
+  const boostGlow = isBoosting
+    ? `0 0 15px ${skinColor}, 0 0 30px ${skinColor}, 0 0 45px ${skinColor}`
+    : "none";
+
   return (
     <div>
       {bodyArray.map((bodyPart: Position, ind: number) => {
@@ -133,27 +141,43 @@ export default function Snake({
         const zIndex = bodyArray.length - ind;
 
         if (isHead) {
-          // Render head as image with rotation and background color
+          // Render head as layered elements: circular background + image on top
           return (
-            <img
-              className="snake-head"
+            <div
+              className="snake-head-container"
               key={ind}
-              src={headImageSrc}
-              alt="snake head"
               style={{
                 left: bodyPart.x + offset.x,
                 top: bodyPart.y + offset.y,
-                transform: `translate(-50%, -50%) rotate(${headRotation}deg)`,
-                background: `radial-gradient(circle at center, ${skinColor}, ${darkerColor})`,
                 zIndex: zIndex,
               }}
-            />
+            >
+              {/* Circular gradient background */}
+              <div
+                className={`snake-head-bg ${isBoosting ? "boosting" : ""}`}
+                style={{
+                  background: `radial-gradient(circle at center, ${skinColor}, ${darkerColor})`,
+                  borderColor: darkerColor,
+                  transform: `rotate(${headRotation}deg)`,
+                  boxShadow: boostGlow,
+                }}
+              />
+              {/* Head image on top - no border-radius */}
+              <img
+                className={`snake-head ${isBoosting ? "boosting" : ""}`}
+                src={headImageSrc}
+                alt="snake head"
+                style={{
+                  transform: `rotate(${headRotation}deg)`,
+                }}
+              />
+            </div>
           );
         } else {
           // Render body segments as circles with radial gradient
           return (
             <div
-              className="snake"
+              className={`snake ${isBoosting ? "boosting" : ""}`}
               key={ind}
               style={{
                 left: bodyPart.x + offset.x,
@@ -161,6 +185,7 @@ export default function Snake({
                 background: `radial-gradient(circle at center, ${skinColor}, ${darkerColor})`,
                 borderColor: darkerColor,
                 zIndex: zIndex,
+                boxShadow: boostGlow,
               }}
             />
           );

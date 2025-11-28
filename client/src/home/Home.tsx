@@ -83,6 +83,8 @@ interface HomeProps {
   setGameState: Dispatch<SetStateAction<GameState>>;
   /** A list of all orbs stored in metadata form */
   orbSet: Set<OrbData>;
+  /** A function that sets the username at the App level */
+  setAppUsername: Dispatch<SetStateAction<string>>;
 }
 
 /**
@@ -106,6 +108,7 @@ export default function Home({
   gameState,
   setGameState,
   orbSet,
+  setAppUsername,
 }: HomeProps): JSX.Element {
   const [username, setUsername] = useState("");
   const [inputGamecode, setInputGamecode] = useState("");
@@ -143,6 +146,8 @@ export default function Home({
     setGameCodeErrorText("");
     // Clear the last score when starting a new game
     localStorage.removeItem('lastScore');
+    // Set the username at the App level for boost score lookup
+    setAppUsername(username);
     try {
       registerSocket(
         setScores,
@@ -177,6 +182,8 @@ export default function Home({
     setGameCodeErrorText("");
     // Clear the last score when starting a new game
     localStorage.removeItem('lastScore');
+    // Set the username at the App level for boost score lookup
+    setAppUsername(username);
     try {
       registerSocket(
         setScores,

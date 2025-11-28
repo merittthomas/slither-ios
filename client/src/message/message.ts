@@ -59,6 +59,7 @@ export interface UpdatePositionMessage {
   data: {
     add: Position;
     remove: Position;
+    boosting?: boolean;
   };
 }
 
@@ -126,6 +127,31 @@ export function sendUpdatePositionMessage(
     data: {
       add: add,
       remove: remove,
+    },
+  };
+  socket.send(JSON.stringify(message));
+}
+
+/**
+ * Sends a message to the server via the given websocket to update the
+ * current client's position across all other clients, including boost state.
+ * @param socket the client's websocket for communication with the server
+ * @param add the position of the segment of the snake to add
+ * @param remove the position of the segment of the snake to remove
+ * @param boosting whether the snake is currently boosting
+ */
+export function sendUpdatePositionWithBoostMessage(
+  socket: WebSocket,
+  add: Position,
+  remove: Position,
+  boosting: boolean
+): void {
+  const message: UpdatePositionMessage = {
+    type: MessageType.UPDATE_POSITION,
+    data: {
+      add: add,
+      remove: remove,
+      boosting: boosting,
     },
   };
   socket.send(JSON.stringify(message));
